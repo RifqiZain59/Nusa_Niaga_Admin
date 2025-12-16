@@ -1,0 +1,120 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="row">
+    <div class="col-lg-4">
+        
+        <div class="card border-0 shadow-sm mb-4">
+            <div class="card-header bg-white border-bottom-0 pt-4 pb-0">
+                <h5 class="fw-bold text-primary"><i class="fas fa-user-cog me-2"></i>Edit Profil</h5>
+            </div>
+            <div class="card-body">
+                <form action="{{ url_for('update_profile') }}" method="POST">
+                    
+                    <div class="mb-3">
+                        <label class="form-label text-muted small fw-bold">Username</label>
+                        <input type="text" class="form-control bg-light" value="{{ current_user.username }}" readonly title="Username tidak bisa diganti">
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label text-muted small fw-bold">Nama Lengkap</label>
+                        <input type="text" name="full_name" class="form-control" value="{{ current_user.full_name or '' }}" placeholder="Nama Admin...">
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label text-muted small fw-bold">Email</label>
+                        <input type="email" name="email" class="form-control" value="{{ current_user.email or '' }}" placeholder="admin@contoh.com">
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label text-muted small fw-bold">Alamat Kantor/Gudang</label>
+                        <textarea name="address" class="form-control" rows="3" placeholder="Alamat toko...">{{ current_user.address or '' }}</textarea>
+                    </div>
+
+                    <button type="submit" class="btn btn-primary w-100 fw-bold shadow-sm">
+                        <i class="fas fa-save me-2"></i> Simpan Perubahan
+                    </button>
+                </form>
+            </div>
+        </div>
+
+        <div class="card border-0 shadow-sm mb-4">
+            <div class="card-header bg-white border-bottom-0 pt-4 pb-0">
+                <h5 class="fw-bold text-danger"><i class="fas fa-lock me-2"></i>Ganti Password</h5>
+            </div>
+            <div class="card-body">
+                <form action="{{ url_for('change_password') }}" method="POST">
+                    <div class="mb-3">
+                        <label class="form-label text-muted small fw-bold">Password Lama</label>
+                        <input type="password" name="old_password" class="form-control" required placeholder="********">
+                    </div>
+                    <hr>
+                    <div class="mb-3">
+                        <label class="form-label text-muted small fw-bold">Password Baru</label>
+                        <input type="password" name="new_password" class="form-control" required placeholder="Minimal 6 karakter">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label text-muted small fw-bold">Konfirmasi Password Baru</label>
+                        <input type="password" name="confirm_password" class="form-control" required placeholder="Ulangi password baru">
+                    </div>
+                    <button type="submit" class="btn btn-outline-danger w-100 fw-bold">
+                        <i class="fas fa-key me-2"></i> Update Password
+                    </button>
+                </form>
+            </div>
+        </div>
+
+    </div>
+
+    <div class="col-lg-8">
+        <div class="card border-0 shadow-sm h-100">
+            <div class="card-header bg-white border-bottom-0 pt-4 px-4 d-flex justify-content-between align-items-center">
+                <h5 class="fw-bold text-dark mb-0"><i class="fas fa-history me-2"></i>Aktivitas Transaksi Terakhir</h5>
+                <span class="badge bg-primary bg-opacity-10 text-primary px-3 rounded-pill">Realtime</span>
+            </div>
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle mb-0 table-striped">
+                        <thead class="table-light small text-muted">
+                            <tr>
+                                <th class="ps-4">Waktu</th>
+                                <th>Pelanggan</th>
+                                <th>Item</th>
+                                <th class="text-end pe-4">Total</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for trx in transactions %}
+                            <tr>
+                                <td class="ps-4 text-muted small">
+                                    <div class="fw-bold text-dark">{{ trx.date.strftime('%d %b %Y') }}</div>
+                                    {{ trx.date.strftime('%H:%M') }} WIB
+                                </td>
+                                <td>
+                                    <span class="fw-bold text-primary">{{ trx.customer_name }}</span>
+                                    <div class="small text-muted">{{ trx.customer_phone }}</div>
+                                </td>
+                                <td>
+                                    {{ trx.product.name }} 
+                                    <span class="badge bg-secondary bg-opacity-25 text-dark border ms-1">x{{ trx.quantity }}</span>
+                                </td>
+                                <td class="text-end pe-4 fw-bold text-success">
+                                    Rp {{ "{:,.0f}".format(trx.final_price) }}
+                                </td>
+                            </tr>
+                            {% else %}
+                            <tr>
+                                <td colspan="4" class="text-center py-5 text-muted">
+                                    <i class="fas fa-clipboard-list fa-3x mb-3 opacity-25"></i>
+                                    <p>Belum ada aktivitas transaksi.</p>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

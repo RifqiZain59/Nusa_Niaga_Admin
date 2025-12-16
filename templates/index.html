@@ -1,0 +1,114 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+        <h4 class="fw-bold text-primary mb-1">Dashboard</h4>
+        <p class="text-muted small mb-0">Ringkasan aktivitas toko Anda.</p>
+    </div>
+    <div class="text-end text-muted small">
+        <i class="far fa-calendar-alt me-1"></i> Admin Panel
+    </div>
+</div>
+
+<div class="row g-4 mb-4">
+    
+    <div class="col-md-4">
+        <div class="card border-0 shadow-sm h-100 text-white" style="background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);">
+            <div class="card-body p-4 d-flex justify-content-between align-items-center">
+                <div>
+                    <h6 class="text-uppercase small mb-2 opacity-75">Total Produk</h6>
+                    <h2 class="fw-bold mb-0">{{ total_products }}</h2>
+                </div>
+                <div class="bg-white bg-opacity-25 p-3 rounded-circle">
+                    <i class="fas fa-box fa-2x"></i>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-4">
+        <div class="card border-0 shadow-sm h-100 text-white" style="background: linear-gradient(135deg, #10b981 0%, #059669 100%);">
+            <div class="card-body p-4 d-flex justify-content-between align-items-center">
+                <div>
+                    <h6 class="text-uppercase small mb-2 opacity-75">Total Stok Unit</h6>
+                    <h2 class="fw-bold mb-0">{{ total_stock }}</h2>
+                </div>
+                <div class="bg-white bg-opacity-25 p-3 rounded-circle">
+                    <i class="fas fa-cubes fa-2x"></i>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-4">
+        <div class="card border-0 shadow-sm h-100 text-white" style="background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);">
+            <div class="card-body p-4 d-flex justify-content-between align-items-center">
+                <div>
+                    <h6 class="text-uppercase small mb-2 opacity-75">Total Pelanggan</h6>
+                    <h2 class="fw-bold mb-0">{{ total_customers }}</h2>
+                </div>
+                <div class="bg-white bg-opacity-25 p-3 rounded-circle">
+                    <i class="fas fa-users fa-2x"></i>
+                </div>
+            </div>
+        </div>
+    </div>
+
+</div>
+
+<div class="card border-0 shadow-sm">
+    <div class="card-header bg-white py-3 border-bottom-0">
+        <h6 class="fw-bold text-dark mb-0"><i class="fas fa-history me-2 text-primary"></i>Transaksi Terakhir</h6>
+    </div>
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0">
+                <thead class="bg-light text-muted small text-uppercase">
+                    <tr>
+                        <th class="ps-4">Tanggal</th>
+                        <th>Pelanggan</th>
+                        <th>Barang</th>
+                        <th>Total</th>
+                        <th class="text-end pe-4">Status</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for t in latest_transactions %}
+                    <tr>
+                        <td class="ps-4 text-muted small">
+                            {% if t.date %}
+                                <div class="fw-bold text-dark">{{ t.date.strftime('%d/%m') }}</div>
+                                {{ t.date.strftime('%H:%M') }}
+                            {% else %}
+                                -
+                            {% endif %}
+                        </td>
+                        <td>
+                            <span class="fw-bold text-primary">{{ t.customer_name }}</span>
+                        </td>
+                        <td>
+                            {{ t.product.name }} 
+                            <span class="badge bg-light text-dark border ms-1">x{{ t.quantity }}</span>
+                        </td>
+                        <td class="fw-bold text-success">
+                            Rp {{ "{:,.0f}".format(t.final_price) }}
+                        </td>
+                        <td class="text-end pe-4">
+                            <span class="badge bg-success bg-opacity-10 text-success px-3 rounded-pill">Selesai</span>
+                        </td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="5" class="text-center py-5 text-muted">Belum ada transaksi hari ini.</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+    <div class="card-footer bg-white p-3 text-center">
+        <a href="{{ url_for('transactions') }}" class="text-decoration-none fw-bold small text-primary">Lihat Semua Transaksi &rarr;</a>
+    </div>
+</div>
+{% endblock %}

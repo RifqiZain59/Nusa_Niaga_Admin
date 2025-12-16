@@ -1,0 +1,44 @@
+{% extends 'base.html' %}
+{% block content %}
+<div class="card p-4 border-0 shadow-sm">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div><h4 class="fw-bold text-primary mb-1">Daftar Produk</h4><p class="text-muted small mb-0">Kelola stok dan harga.</p></div>
+        <a href="{{ url_for('add') }}" class="btn btn-primary shadow-sm"><i class="fas fa-plus me-2"></i>Tambah</a>
+    </div>
+
+    <div class="table-responsive">
+        <table class="table table-hover align-middle table-bordered small">
+            <thead class="bg-light text-center">
+                <tr><th>ID</th><th>Nama Produk</th><th>Kategori</th><th>Harga Satuan</th><th>Stok</th><th>Deskripsi</th><th>Aksi</th></tr>
+            </thead>
+            <tbody>
+                {% for product in products %}
+                <tr>
+                    <td class="text-center">#{{ product.id }}</td>
+                    <td><span class="fw-bold text-dark">{{ product.name }}</span></td>
+                    
+                    <td>
+                        {% if product.category %}
+                            <span class="badge bg-info text-dark">{{ product.category.name }}</span>
+                        {% else %}
+                            <span class="text-muted small">-</span>
+                        {% endif %}
+                    </td>
+                    
+                    <td class="text-end text-primary fw-bold">Rp {{ "{:,.0f}".format(product.price) }}</td>
+                    <td class="text-center">
+                        {% if product.stock < 5 %}<span class="badge bg-danger bg-opacity-10 text-danger border border-danger">Low: {{ product.stock }}</span>
+                        {% else %}<span class="badge bg-success bg-opacity-10 text-success border border-success">{{ product.stock }}</span>{% endif %}
+                    </td>
+                    <td class="text-muted small text-truncate" style="max-width: 150px;">{{ product.description }}</td>
+                    <td class="text-center">
+                        <a href="{{ url_for('edit', id=product.id) }}" class="btn btn-sm btn-outline-warning"><i class="fas fa-pencil-alt"></i></a>
+                        <a href="{{ url_for('delete', id=product.id) }}" class="btn btn-sm btn-outline-danger" onclick="return confirm('Hapus?')"><i class="fas fa-trash-alt"></i></a>
+                    </td>
+                </tr>
+                {% else %}<tr><td colspan="7" class="text-center py-5">Kosong.</td></tr>{% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

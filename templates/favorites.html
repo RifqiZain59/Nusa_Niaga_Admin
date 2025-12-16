@@ -1,0 +1,21 @@
+{% extends 'base.html' %}
+{% block content %}
+<div class="card p-4 border-0 shadow-sm">
+    <h4 class="fw-bold text-danger mb-4"><i class="fas fa-heart me-2"></i>Produk Favorit</h4>
+    <div class="table-responsive">
+        <table class="table table-hover align-middle">
+            <thead class="table-light"><tr><th>Tanggal</th><th>Pelanggan</th><th>Produk</th><th>Harga</th></tr></thead>
+            <tbody>
+                {% for f in favorites %}
+                <tr>
+                    <td class="text-muted small">{{ f.created_at.strftime('%d %b %Y') }}</td>
+                    <td class="fw-bold"><a href="{{ url_for('customer_detail', id=f.customer_id) }}" class="text-decoration-none">{{ f.customer.name }}</a></td>
+                    <td><span class="badge bg-danger bg-opacity-10 text-danger"><i class="fas fa-heart"></i> {{ f.product.name }}</span></td>
+                    <td>Rp {{ "{:,.0f}".format(f.product.price) }}</td>
+                </tr>
+                {% else %}<tr><td colspan="4" class="text-center py-5">Kosong. <a href="/generate_dummy">Klik buat dummy data</a></td></tr>{% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,323 @@
+{% extends 'base.html' %}
+
+{% block content %}
+
+<style>
+    @media print {
+        /* Sembunyikan elemen navigasi dan tombol aksi */
+        #sidebar-wrapper, .navbar, .btn, .no-print, .alert, .modal, .sidebar-footer, footer {
+            display: none !important;
+        }
+        
+        /* Atur layout agar memenuhi kertas */
+        #page-content-wrapper {
+            margin-left: 0 !important;
+            width: 100% !important;
+            padding: 0 !important;
+        }
+
+        .card {
+            border: none !important;
+            box-shadow: none !important;
+            margin-bottom: 20px !important;
+        }
+
+        /* Sembunyikan kolom "Aksi" pada tabel saat cetak */
+        #customerTable th:last-child, #customerTable td:last-child {
+            display: none !important;
+        }
+
+        /* Tampilkan Header Laporan khusus Print */
+        .print-header {
+            display: block !important;
+            text-align: center;
+            margin-bottom: 30px;
+            border-bottom: 2px solid #000;
+            padding-bottom: 10px;
+        }
+        
+        body { 
+            font-size: 11px; 
+            background-color: white !important; 
+        }
+        
+        .table { 
+            width: 100% !important; 
+            border: 1px solid #dee2e6 !important;
+        }
+    }
+
+    /* Sembunyikan Header Laporan di layar komputer */
+    .print-header { display: none; }
+</style>
+
+<div class="print-header">
+    <h2 class="mb-1 text-uppercase">Laporan Loyalitas Pelanggan</h2>
+    <h4 class="mb-2">NUSA NIAGA - POS & CRM SYSTEM</h4>
+    <p class="mb-0">Daftar Poin Member & Histori Penukaran Hadiah</p>
+    <small>Dicetak pada: <span id="print_date_display"></span></small>
+</div>
+
+<div class="d-flex justify-content-between align-items-center mb-4 no-print">
+    <div>
+        <h4 class="fw-bold text-primary mb-1">Loyalty Pelanggan</h4>
+        <p class="text-muted small mb-0">Kelola poin member dan pemantauan reward.</p>
+    </div>
+    
+    <div class="d-flex gap-2">
+        <button onclick="shareToWhatsApp()" class="btn btn-success shadow-sm">
+            <i class="fab fa-whatsapp me-2"></i> Kirim Laporan WA
+        </button>
+        <button onclick="printLaporan()" class="btn btn-danger shadow-sm">
+            <i class="fas fa-file-pdf me-2"></i> Cetak Laporan PDF
+        </button>
+    </div>
+</div>
+
+<div class="alert alert-info py-2 px-3 mb-4 small border-0 bg-info bg-opacity-10 text-primary fw-bold shadow-sm no-print">
+    <i class="fas fa-info-circle me-1"></i> Kurs Penukaran: 1 Poin = Rp 5.000
+</div>
+
+<div class="card p-4 border-0 shadow-sm mb-4">
+    <h5 class="fw-bold mb-3"><i class="fas fa-users me-2 text-primary"></i>Daftar Poin Member</h5>
+    <div class="table-responsive">
+        <table class="table table-hover align-middle" id="customerTable">
+            <thead class="bg-light">
+                <tr>
+                    <th>Nama Pelanggan</th>
+                    <th>No. HP</th>
+                    <th class="text-center">Sisa Poin</th>
+                    <th class="text-end">Nilai Rupiah</th>
+                    <th class="text-center no-print">Aksi</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for c in customers %}
+                <tr class="customer-row">
+                    <td>
+                        <a href="{{ url_for('customer_detail', id=c.id) }}" class="fw-bold text-decoration-none text-dark name-cell">
+                            {{ c.name }}
+                        </a>
+                    </td>
+                    <td class="phone-cell">{{ c.phone }}</td>
+                    <td class="text-center">
+                        <span class="badge bg-warning text-dark fs-6 px-3 rounded-pill border border-warning shadow-sm point-cell" data-points="{{ c.points }}">
+                            {{ c.points }}
+                        </span>
+                    </td>
+                    <td class="text-end fw-bold text-success">
+                        Rp {{ "{:,.0f}".format(c.points * 5000) }}
+                    </td>
+                    <td class="text-center no-print">
+                        <button type="button" class="btn btn-sm btn-primary shadow-sm px-3" 
+                                onclick="openCatalogModal(this)" 
+                                data-id="{{ c.id }}" 
+                                data-name="{{ c.name }}" 
+                                data-points="{{ c.points }}">
+                            <i class="fas fa-gift me-1"></i> Pilih Hadiah
+                        </button>
+                    </td>
+                </tr>
+                {% else %}
+                <tr><td colspan="5" class="text-center py-5 text-muted">Belum ada pelanggan terdaftar.</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<div class="card p-4 border-0 shadow-sm">
+    <h5 class="fw-bold text-dark mb-3"><i class="fas fa-history me-2 text-warning"></i>Riwayat Penukaran Poin</h5>
+    <div class="table-responsive">
+        <table class="table table-hover align-middle table-bordered small" id="historyTable">
+            <thead class="table-light">
+                <tr>
+                    <th>Tanggal & Waktu</th>
+                    <th>Nama Pelanggan</th>
+                    <th>Poin Keluar</th>
+                    <th>Ditukar Untuk</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for log in history %}
+                <tr class="history-row">
+                    <td class="hist-date text-muted">{{ log.date.strftime('%d %b %Y, %H:%M') }}</td>
+                    <td class="fw-bold hist-name">{{ log.customer.name }}</td>
+                    <td class="text-danger fw-bold hist-points">-{{ log.points_spent }}</td>
+                    <td class="text-primary hist-desc">{{ log.description }}</td>
+                </tr>
+                {% else %}
+                <tr><td colspan="4" class="text-center py-3 text-muted">Belum ada riwayat penukaran poin.</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<div class="modal fade" id="redeemModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-centered"> 
+        <div class="modal-content border-0 shadow-lg">
+            <div class="modal-header bg-primary text-white border-0">
+                <h5 class="modal-title fw-bold"><i class="fas fa-gift me-2"></i>Katalog Hadiah</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            
+            <form action="{{ url_for('redeem_points') }}" method="POST" id="redeemForm">
+                <div class="modal-body p-4">
+                    <div class="alert alert-light border d-flex justify-content-between align-items-center mb-4">
+                        <div>
+                            <small class="text-muted text-uppercase fw-bold">Pelanggan</small>
+                            <h5 class="mb-0 fw-bold text-primary" id="modal_customer_name">Nama</h5>
+                            <input type="hidden" name="customer_id" id="modal_customer_id">
+                        </div>
+                        <div class="text-end">
+                            <small class="text-muted text-uppercase fw-bold">Poin Tersedia</small>
+                            <h4 class="mb-0 fw-bold text-warning" id="modal_current_points">0</h4>
+                        </div>
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-7 border-end">
+                            <h6 class="fw-bold mb-3 text-muted">Pilih Hadiah:</h6>
+                            <div class="row g-2">
+                                <div class="col-6">
+                                    <input type="radio" class="btn-check" name="selected_item" id="item1" onclick="selectItem(10, 'Mug Cantik')">
+                                    <label class="btn btn-outline-light text-dark border w-100 p-3 text-start h-100" for="item1">
+                                        Mug Cantik<br><b class="text-primary">10 Poin</b>
+                                    </label>
+                                </div>
+                                <div class="col-6">
+                                    <input type="radio" class="btn-check" name="selected_item" id="item2" onclick="selectItem(20, 'Payung Lipat')">
+                                    <label class="btn btn-outline-light text-dark border w-100 p-3 text-start h-100" for="item2">
+                                        Payung Lipat<br><b class="text-primary">20 Poin</b>
+                                    </label>
+                                </div>
+                                <div class="col-6">
+                                    <input type="radio" class="btn-check" name="selected_item" id="item3" onclick="selectItem(30, 'Kaos Exclusive')">
+                                    <label class="btn btn-outline-light text-dark border w-100 p-3 text-start h-100" for="item3">
+                                        Kaos Exclusive<br><b class="text-primary">30 Poin</b>
+                                    </label>
+                                </div>
+                                <div class="col-6">
+                                    <input type="radio" class="btn-check" name="selected_item" id="item4" onclick="selectItem(50, 'Voucher 250rb')">
+                                    <label class="btn btn-outline-light text-dark border w-100 p-3 text-start h-100" for="item4">
+                                        Voucher Belanja<br><b class="text-primary">50 Poin</b>
+                                    </label>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="col-md-5 text-center">
+                            <input type="hidden" name="points_to_redeem" id="final_points">
+                            <input type="hidden" name="description" id="final_desc">
+                            
+                            <div id="qr_placeholder" class="py-5 text-muted fst-italic">
+                                <i class="fas fa-hand-pointer mb-2 d-block fa-2x"></i>
+                                Silakan pilih hadiah di samping
+                            </div>
+
+                            <div id="qr_result" style="display: none;">
+                                <div class="small mb-2 fw-bold">Scan QR untuk Konfirmasi</div>
+                                <img id="qr_image" src="" width="160" class="mb-3 border p-2 bg-white rounded">
+                                <div class="card bg-light border-0 p-2 mb-3 text-start">
+                                    <div class="small text-muted">Item: <b id="summary_item" class="text-dark"></b></div>
+                                    <div class="small text-muted">Poin: <b id="summary_points" class="text-danger"></b></div>
+                                </div>
+                                <button type="submit" class="btn btn-success w-100 fw-bold py-2 shadow-sm">
+                                    PROSES PENUKARAN
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+    // 1. LOGIKA CETAK LAPORAN (PDF)
+    function printLaporan() {
+        const today = new Date();
+        const options = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' };
+        document.getElementById('print_date_display').innerText = today.toLocaleString('id-ID', options) + " WIB";
+        window.print();
+    }
+
+    // 2. LOGIKA KIRIM LAPORAN VIA WHATSAPP
+    function shareToWhatsApp() {
+        // Hitung Total Poin Member
+        let custRows = document.querySelectorAll('.customer-row');
+        let totalPoints = 0;
+        custRows.forEach(row => {
+            totalPoints += parseInt(row.querySelector('.point-cell').getAttribute('data-points')) || 0;
+        });
+
+        // Ambil 3 Riwayat Penukaran Terakhir
+        let histRows = document.querySelectorAll('.history-row');
+        let histSummary = "";
+        histRows.forEach((row, index) => {
+            if(index < 3) {
+                let name = row.querySelector('.hist-name').innerText;
+                let item = row.querySelector('.hist-desc').innerText;
+                let pts = row.querySelector('.hist-points').innerText;
+                histSummary += `• ${name}: ${item} (${pts})\n`;
+            }
+        });
+
+        // Susun Pesan
+        let message = `*LAPORAN LOYALTY NUSA NIAGA*\n\n`;
+        message += `👥 Total Member: *${custRows.length}*\n`;
+        message += `💎 Total Poin Aktif: *${totalPoints} Poin*\n`;
+        message += `💰 Estimasi Dana: *Rp ${new Intl.NumberFormat('id-ID').format(totalPoints * 5000)}*\n\n`;
+        
+        if(histSummary) {
+            message += `*🔄 Penukaran Poin Terakhir:*\n${histSummary}`;
+        }
+        
+        message += `\n_Dicetak secara sistem: ${new Date().toLocaleString('id-ID')}_`;
+
+        // Buka WhatsApp
+        window.open(`https://wa.me/?text=${encodeURIComponent(message)}`, '_blank');
+    }
+
+    // 3. LOGIKA REDEEM & MODAL
+    let currentCustomerPoints = 0;
+
+    function openCatalogModal(btn) {
+        document.getElementById('modal_customer_id').value = btn.dataset.id;
+        document.getElementById('modal_customer_name').innerText = btn.dataset.name;
+        document.getElementById('modal_current_points').innerText = btn.dataset.points;
+        currentCustomerPoints = parseInt(btn.dataset.points);
+        
+        // Reset modal state
+        document.getElementById('qr_placeholder').style.display = 'block';
+        document.getElementById('qr_result').style.display = 'none';
+        let radios = document.getElementsByName('selected_item');
+        radios.forEach(r => r.checked = false);
+
+        new bootstrap.Modal(document.getElementById('redeemModal')).show();
+    }
+
+    function selectItem(pts, name) {
+        if(pts > currentCustomerPoints) { 
+            alert("Poin pelanggan tidak cukup!"); 
+            event.target.checked = false;
+            return; 
+        }
+
+        document.getElementById('final_points').value = pts;
+        document.getElementById('final_desc').value = name;
+        document.getElementById('summary_item').innerText = name;
+        document.getElementById('summary_points').innerText = pts + " Poin";
+        
+        document.getElementById('qr_placeholder').style.display = 'none';
+        document.getElementById('qr_result').style.display = 'block';
+
+        // QR Code untuk visualisasi
+        const qrContent = `REDEEM|${document.getElementById('modal_customer_name').innerText}|${name}|${pts}`;
+        document.getElementById('qr_image').src = `https://api.qrserver.com/v1/create-qr-code/?size=160x160&data=${encodeURIComponent(qrContent)}`;
+    }
+</script>
+
+{% endblock %}

@@ -1,0 +1,175 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="row">
+    
+    <div class="col-12 mb-4">
+        <div class="card border-0 shadow-sm text-white" style="background: linear-gradient(135deg, #1e3a8a 0%, #2563eb 100%);">
+            <div class="card-body p-4 d-flex justify-content-between align-items-center">
+                <div class="d-flex align-items-center">
+                    <div class="bg-white bg-opacity-25 p-3 rounded-circle me-3">
+                        <i class="fas fa-crown fa-2x text-white"></i>
+                    </div>
+                    <div>
+                        <h5 class="opacity-75 mb-1 text-uppercase small ls-1">Member Loyalty</h5>
+                        <h2 class="fw-bold mb-0">{{ c.name }}</h2>
+                        <small class="opacity-75"><i class="fas fa-phone me-1"></i> {{ c.phone }}</small>
+                    </div>
+                </div>
+                <div class="text-end">
+                    <h1 class="fw-bold mb-0">{{ c.points }}</h1>
+                    <span class="badge bg-warning text-dark border border-warning px-3 rounded-pill">POIN AKTIF</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-5 mb-4">
+        <div class="card border-0 shadow-sm h-100">
+            <div class="card-header bg-white py-3 d-flex justify-content-between align-items-center border-bottom">
+                <h6 class="fw-bold text-primary mb-0"><i class="fas fa-user-circle me-2"></i>Data Akun</h6>
+                <button class="btn btn-sm btn-outline-primary" data-bs-toggle="modal" data-bs-target="#editCustomerModal">
+                    <i class="fas fa-edit"></i> Edit
+                </button>
+            </div>
+            <div class="card-body p-0">
+                <table class="table table-bordered mb-0 align-middle">
+                    <tr>
+                        <td width="35%" class="bg-light text-muted small fw-bold ps-3">Nama Lengkap</td>
+                        <td class="fw-bold ps-3">{{ c.name }}</td>
+                    </tr>
+                    <tr>
+                        <td class="bg-light text-muted small fw-bold ps-3">No. HP (ID)</td>
+                        <td class="ps-3">{{ c.phone }}</td>
+                    </tr>
+                    <tr>
+                        <td class="bg-light text-muted small fw-bold ps-3">Email</td>
+                        <td class="ps-3">{{ c.email or '-' }}</td>
+                    </tr>
+                    <tr>
+                        <td class="bg-light text-muted small fw-bold ps-3">Password</td>
+                        <td class="ps-3">
+                            {% if c.password %}
+                                <span class="text-muted" style="letter-spacing: 2px;">********</span>
+                            {% else %}
+                                <span class="badge bg-secondary">Belum set</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    <tr>
+                        <td class="bg-light text-muted small fw-bold ps-3">Alamat</td>
+                        <td class="ps-3 text-truncate" style="max-width: 150px;">{{ c.address or '-' }}</td>
+                    </tr>
+                </table>
+            </div>
+            <div class="card-footer bg-white p-3">
+                <a href="{{ url_for('customers') }}" class="btn btn-light w-100 text-muted">
+                    <i class="fas fa-arrow-left me-2"></i>Kembali
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-7 mb-4">
+        <div class="card border-0 shadow-sm h-100">
+            <div class="card-header bg-white py-3 border-bottom">
+                <h6 class="fw-bold text-primary mb-0"><i class="fas fa-shopping-bag me-2"></i>Riwayat Pembelian</h6>
+            </div>
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle mb-0 table-striped">
+                        <thead class="table-light small text-muted">
+                            <tr>
+                                <th class="ps-3">Tanggal</th>
+                                <th>Produk</th>
+                                <th class="text-center">Qty</th>
+                                <th class="text-end pe-3">Total</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for t in transactions %}
+                            <tr>
+                                <td class="ps-3 text-muted small">
+                                    {{ t.date.strftime('%d/%m/%y') }}<br>
+                                    {{ t.date.strftime('%H:%M') }}
+                                </td>
+                                <td>
+                                    <span class="fw-bold text-dark d-block">{{ t.product.name }}</span>
+                                    <span class="badge bg-light text-secondary border">{{ t.payment_method }}</span>
+                                    {% if t.discount_voucher > 0 %}
+                                        <span class="badge bg-danger bg-opacity-10 text-danger">Voucher</span>
+                                    {% endif %}
+                                </td>
+                                <td class="text-center fw-bold">{{ t.quantity }}</td>
+                                <td class="text-end pe-3 fw-bold text-success">
+                                    Rp {{ "{:,.0f}".format(t.final_price) }}
+                                </td>
+                            </tr>
+                            {% else %}
+                            <tr>
+                                <td colspan="4" class="text-center py-5 text-muted">
+                                    <i class="fas fa-shopping-basket fa-2x mb-3 opacity-25"></i>
+                                    <p class="mb-0">Belum ada riwayat transaksi.</p>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+</div>
+
+<div class="modal fade" id="editCustomerModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 shadow-lg">
+            <div class="modal-header bg-primary text-white border-0">
+                <h5 class="modal-title fw-bold"><i class="fas fa-user-edit me-2"></i>Edit Data Akun</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            
+            <form action="{{ url_for('update_customer') }}" method="POST">
+                <div class="modal-body p-4">
+                    <input type="hidden" name="customer_id" value="{{ c.id }}">
+                    
+                    <div class="mb-3">
+                        <label class="form-label text-muted small fw-bold">Nama Lengkap</label>
+                        <input type="text" name="name" class="form-control" value="{{ c.name }}" required>
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label text-muted small fw-bold">No. HP (ID)</label>
+                            <input type="text" name="phone" class="form-control" value="{{ c.phone }}" required>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label text-muted small fw-bold">Email</label>
+                            <input type="email" name="email" class="form-control" value="{{ c.email or '' }}" placeholder="email@contoh.com">
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label text-muted small fw-bold">Password Baru</label>
+                        <div class="input-group">
+                            <span class="input-group-text bg-light"><i class="fas fa-lock"></i></span>
+                            <input type="text" name="password" class="form-control" placeholder="Isi untuk ganti password">
+                        </div>
+                        <div class="form-text small text-muted">Biarkan kosong jika tidak ingin mengubah.</div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label text-muted small fw-bold">Alamat Pengiriman</label>
+                        <textarea name="address" class="form-control" rows="3">{{ c.address }}</textarea>
+                    </div>
+                </div>
+                <div class="modal-footer border-0 bg-light">
+                    <button type="button" class="btn btn-link text-muted text-decoration-none" data-bs-dismiss="modal">Batal</button>
+                    <button type="submit" class="btn btn-primary px-4 fw-bold shadow-sm">Simpan Perubahan</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}

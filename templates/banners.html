@@ -1,0 +1,188 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<style>
+    .banner-card {
+        transition: transform 0.2s ease, box-shadow 0.2s ease;
+        border-radius: 15px;
+        overflow: hidden;
+    }
+    .banner-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 10px 20px rgba(0,0,0,0.1) !important;
+    }
+    .img-container {
+        height: 200px;
+        background-color: #f8f9fa;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        border-bottom: 1px solid #edf2f7;
+    }
+    .img-container img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+    }
+    .form-label {
+        font-weight: 600;
+        color: #4a5568;
+        font-size: 0.85rem;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+    /* Memastikan toggle Bootstrap tidak pecah keluar kotak */
+    .custom-switch-box {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 1rem;
+        background-color: #f8f9fa;
+        border-radius: 12px;
+        border: 1px solid #dee2e6;
+    }
+    .form-check-input {
+        cursor: pointer;
+        scale: 1.2;
+        margin-left: 0 !important; /* Reset offset default */
+    }
+</style>
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+        <h4 class="fw-bold text-primary mb-1">Manajemen Banner</h4>
+        <p class="text-muted small mb-0">Kelola visual promosi aplikasi langsung dari database.</p>
+    </div>
+    <button class="btn btn-primary px-4 shadow-sm fw-bold" data-bs-toggle="modal" data-bs-target="#addBannerModal">
+        <i class="fas fa-plus-circle me-2"></i>Tambah Banner
+    </button>
+</div>
+
+<div class="row g-4">
+    {% for b in banners %}
+    <div class="col-md-6 col-lg-4">
+        <div class="card h-100 border-0 shadow-sm banner-card">
+            <div class="img-container">
+                <img src="{{ url_for('banner_image', id=b.id) }}" alt="{{ b.title }}">
+            </div>
+            
+            <div class="card-body p-4">
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                    <h6 class="fw-bold text-dark mb-0 text-truncate" style="max-width: 70%;">{{ b.title }}</h6>
+                    {% if b.is_active %}
+                        <span class="badge bg-success bg-opacity-10 text-success rounded-pill px-3 py-2 small">
+                            <i class="fas fa-check-circle me-1"></i>Aktif
+                        </span>
+                    {% else %}
+                        <span class="badge bg-secondary bg-opacity-10 text-secondary rounded-pill px-3 py-2 small">
+                            <i class="fas fa-eye-slash me-1"></i>Mati
+                        </span>
+                    {% endif %}
+                </div>
+                
+                <hr class="text-muted opacity-25">
+                
+                <div class="d-flex justify-content-end gap-2">
+                    <button class="btn btn-sm btn-light text-primary border" 
+                            data-id="{{ b.id }}"
+                            data-title="{{ b.title }}"
+                            data-active="{{ '1' if b.is_active else '0' }}"
+                            onclick="openEditModal(this)">
+                        <i class="fas fa-edit me-1"></i>Edit
+                    </button>
+                    <a href="{{ url_for('delete_banner', id=b.id) }}" 
+                       class="btn btn-sm btn-light text-danger border" 
+                       onclick="return confirm('Hapus banner ini permanen dari database?')">
+                        <i class="fas fa-trash"></i>
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% else %}
+    <div class="col-12 text-center py-5">
+        <div class="bg-white p-5 rounded-4 shadow-sm d-inline-block border">
+            <i class="fas fa-images fa-4x text-light mb-3"></i>
+            <p class="text-muted mb-0">Belum ada data banner di database.</p>
+        </div>
+    </div>
+    {% endfor %}
+</div>
+
+<div class="modal fade" id="addBannerModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 shadow-lg">
+            <div class="modal-header border-0 pb-0">
+                <h5 class="fw-bold"><i class="fas fa-cloud-upload-alt me-2 text-primary"></i>Upload Banner Baru</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form action="{{ url_for('add_banner') }}" method="POST" enctype="multipart/form-data">
+                <div class="modal-body p-4">
+                    <div class="mb-4">
+                        <label class="form-label">Judul Banner / Promo</label>
+                        <input type="text" name="title" class="form-control form-control-lg border-primary-subtle" required placeholder="Contoh: Promo Akhir Tahun">
+                    </div>
+                    <div class="mb-0">
+                        <label class="form-label">Pilih File Gambar</label>
+                        <input type="file" name="image" class="form-control" accept="image/*" required>
+                        <small class="text-muted mt-2 d-block fst-italic"><i class="fas fa-info-circle me-1"></i>Format: JPG, PNG, JPEG. Maks 16MB.</small>
+                    </div>
+                </div>
+                <div class="modal-footer border-0">
+                    <button type="button" class="btn btn-light px-4" data-bs-dismiss="modal">Batal</button>
+                    <button type="submit" class="btn btn-primary px-4 fw-bold">Simpan ke DB</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="editBannerModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 shadow-lg">
+            <div class="modal-header border-0 pb-0">
+                <h5 class="fw-bold text-warning"><i class="fas fa-edit me-2"></i>Perbarui Banner</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form action="{{ url_for('edit_banner') }}" method="POST" enctype="multipart/form-data">
+                <div class="modal-body p-4">
+                    <input type="hidden" name="banner_id" id="edit_id">
+                    
+                    <div class="mb-4">
+                        <label class="form-label">Judul Promo</label>
+                        <input type="text" name="title" id="edit_title" class="form-control form-control-lg" required>
+                    </div>
+                    
+                    <div class="mb-4">
+                        <label class="form-label">Ganti Gambar (Opsional)</label>
+                        <input type="file" name="image" class="form-control" accept="image/*">
+                        <small class="text-info mt-2 d-block"><i class="fas fa-lightbulb me-1"></i>Kosongkan jika tidak ingin mengubah gambar lama.</small>
+                    </div>
+                    
+                    <div class="custom-switch-box">
+                        <label class="fw-bold text-dark mb-0" for="edit_active" style="cursor: pointer;">Tampilkan Banner</label>
+                        <div class="form-check form-switch mb-0">
+                            <input class="form-check-input" type="checkbox" name="is_active" id="edit_active">
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer border-0">
+                    <button type="button" class="btn btn-light px-4" data-bs-dismiss="modal">Batal</button>
+                    <button type="submit" class="btn btn-warning px-4 fw-bold text-dark">Update Perubahan</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+    function openEditModal(button) {
+        document.getElementById('edit_id').value = button.getAttribute('data-id');
+        document.getElementById('edit_title').value = button.getAttribute('data-title');
+        document.getElementById('edit_active').checked = (button.getAttribute('data-active') === '1');
+
+        var myModal = new bootstrap.Modal(document.getElementById('editBannerModal'));
+        myModal.show();
+    }
+</script>
+{% endblock %}

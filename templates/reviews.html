@@ -1,0 +1,22 @@
+{% extends 'base.html' %}
+{% block content %}
+<div class="card p-4 border-0 shadow-sm">
+    <h4 class="fw-bold text-primary mb-4"><i class="fas fa-star me-2"></i>Ulasan Produk</h4>
+    <div class="table-responsive">
+        <table class="table table-hover align-middle">
+            <thead class="table-light"><tr><th>Tanggal</th><th>Pelanggan</th><th>Produk</th><th>Rating</th><th>Komentar</th><th>Aksi</th></tr></thead>
+            <tbody>
+                {% for r in reviews %}
+                <tr>
+                    <td class="text-muted small">{{ r.created_at.strftime('%d %b %Y') }}</td>
+                    <td class="fw-bold">{{ r.customer.name }}</td><td>{{ r.product.name }}</td>
+                    <td><span class="text-warning">{% for i in range(r.rating) %}<i class="fas fa-star"></i>{% endfor %}</span></td>
+                    <td>{{ r.comment }}</td>
+                    <td><a href="{{ url_for('delete_review', id=r.id) }}" class="btn btn-sm btn-outline-danger" onclick="return confirm('Hapus?')"><i class="fas fa-trash"></i></a></td>
+                </tr>
+                {% else %}<tr><td colspan="6" class="text-center py-5">Belum ada ulasan. <a href="/generate_dummy">Klik buat dummy data</a></td></tr>{% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

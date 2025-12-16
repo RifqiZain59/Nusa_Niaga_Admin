@@ -1,0 +1,197 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin Nusa Niaga</title>
+    
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    
+    <style>
+        :root { --primary-blue: #2563eb; --dark-blue: #1e3a8a; --light-blue: #eff6ff; --sidebar-width: 260px; --sidebar-mini-width: 80px; }
+        body { font-family: 'Poppins', sans-serif; background-color: var(--light-blue); color: #334155; overflow-x: hidden; }
+        #wrapper { display: flex; width: 100%; transition: all 0.3s ease; }
+        
+        /* --- PERBAIKAN SIDEBAR (STRUKTUR FLEXBOX) --- */
+        #sidebar-wrapper {
+            height: 100vh; /* Wajib Fixed Height */
+            width: var(--sidebar-width); margin-left: 0;
+            background: linear-gradient(180deg, var(--dark-blue) 0%, #1e40af 100%); 
+            color: #fff; position: fixed; z-index: 1000; transition: all 0.3s ease;
+            box-shadow: 4px 0 15px rgba(37, 99, 235, 0.1); 
+            
+            /* Agar elemen tersusun atas-bawah dan logout di dasar */
+            display: flex; 
+            flex-direction: column; 
+            justify-content: space-between;
+        }
+
+        /* 1. Brand (Header Sidebar) */
+        .sidebar-brand { 
+            height: 70px; display: flex; align-items: center; padding: 0 1.5rem; 
+            font-size: 1.5rem; font-weight: 700; border-bottom: 1px solid rgba(255,255,255,0.1);
+            flex-shrink: 0; /* Jangan mengecil */
+        }
+        
+        /* 2. Menu Tengah (Scrollable Area) */
+        .sidebar-menu-content {
+            flex-grow: 1; /* Mengambil sisa ruang */
+            overflow-y: auto; /* Scroll jika menu panjang */
+            overflow-x: hidden;
+        }
+        /* Custom Scrollbar untuk Menu */
+        .sidebar-menu-content::-webkit-scrollbar { width: 4px; }
+        .sidebar-menu-content::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.2); border-radius: 4px; }
+
+        /* 3. Footer (Tombol Keluar) */
+        .sidebar-footer {
+            flex-shrink: 0; /* Jangan mengecil */
+            border-top: 1px solid rgba(255,255,255,0.1);
+            background: rgba(0, 0, 0, 0.2); /* Latar belakang agak gelap agar kontras */
+            padding: 10px 0;
+        }
+
+        /* Styling Item Menu */
+        .list-group-item { background: transparent; color: #bfdbfe; border: none; padding: 0.8rem 1.5rem; font-weight: 500; transition: all 0.3s; border-left: 4px solid transparent; display: flex; align-items: center; height: 50px; }
+        .list-group-item i { min-width: 30px; font-size: 1.1rem; text-align: center; }
+        .list-group-item:hover { background-color: rgba(255,255,255,0.1); color: #fff; padding-left: 1.8rem; }
+        .list-group-item.active { background-color: rgba(255,255,255,0.15); color: #fff; border-left: 4px solid #60a5fa; }
+        
+        .sidebar-heading {
+            font-size: 0.7rem; text-transform: uppercase; letter-spacing: 1.5px;
+            font-weight: 700; color: rgba(255, 255, 255, 0.4);
+            padding: 1.5rem 1.5rem 0.5rem; 
+        }
+
+        #page-content-wrapper { width: 100%; margin-left: var(--sidebar-width); transition: margin-left 0.3s ease; }
+        .navbar { background-color: #fff; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05); padding: 0.8rem 2rem; height: 70px; }
+        .container-fluid-content { padding: 2rem; }
+        .card { border: none; border-radius: 15px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); }
+        .btn-primary { background-color: var(--primary-blue); border: none; }
+        .form-control:focus { border-color: var(--primary-blue); box-shadow: 0 0 0 0.2rem rgba(37, 99, 235, 0.25); }
+
+        /* LOGIKA COLLAPSE (MINI SIDEBAR) */
+        #wrapper.toggled #sidebar-wrapper { width: var(--sidebar-mini-width); }
+        #wrapper.toggled #sidebar-wrapper .sidebar-brand { justify-content: center; padding: 0; }
+        #wrapper.toggled .menu-text, #wrapper.toggled .brand-text, #wrapper.toggled .sidebar-heading { display: none; }
+        #wrapper.toggled .list-group-item { justify-content: center; padding-left: 0; padding-right: 0; }
+        #wrapper.toggled .list-group-item i { margin-right: 0 !important; }
+        #wrapper.toggled #page-content-wrapper { margin-left: var(--sidebar-mini-width); }
+
+        @media (max-width: 768px) {
+            #sidebar-wrapper { margin-left: calc(-1 * var(--sidebar-width)); }
+            #page-content-wrapper { margin-left: 0; }
+            #wrapper.toggled #sidebar-wrapper { width: var(--sidebar-width); margin-left: 0; }
+            #wrapper.toggled .menu-text, #wrapper.toggled .brand-text { display: block; opacity: 1; }
+            #wrapper.toggled .list-group-item { justify-content: flex-start; padding: 1rem 1.5rem; }
+            #wrapper.toggled .list-group-item i { margin-right: 1rem !important; }
+            #wrapper.toggled #page-content-wrapper { margin-left: 0; opacity: 0.5; pointer-events: none; }
+        }
+    </style>
+</head>
+<body>
+
+    <div id="wrapper">
+        
+        {% if current_user.is_authenticated %}
+        <div id="sidebar-wrapper">
+            
+            <div class="sidebar-brand">
+                <i class="fas fa-gem fs-4"></i>
+                <span class="brand-text ms-2">NUSA NIAGA</span>
+            </div>
+            
+            <div class="list-group list-group-flush sidebar-menu-content">
+                
+                <div class="sidebar-heading">Menu Utama</div>
+                <a href="{{ url_for('index') }}" class="list-group-item list-group-item-action {{ 'active' if request.path == '/' else '' }}">
+                    <i class="fas fa-home me-3"></i> <span class="menu-text">Dashboard</span>
+                </a>
+                <a href="{{ url_for('categories') }}" class="list-group-item list-group-item-action {{ 'active' if 'categories' in request.path else '' }}">
+                    <i class="fas fa-layer-group me-3"></i> <span class="menu-text">Kategori</span>
+                </a>
+                <a href="{{ url_for('products') }}" class="list-group-item list-group-item-action {{ 'active' if 'products' in request.path else '' }}">
+                    <i class="fas fa-box me-3"></i> <span class="menu-text">Produk</span>
+                </a>
+                <a href="{{ url_for('transactions') }}" class="list-group-item list-group-item-action {{ 'active' if 'transaction' in request.path else '' }}">
+                    <i class="fas fa-receipt me-3"></i> <span class="menu-text">Transaksi</span>
+                </a>
+
+                <div class="sidebar-heading">Promosi</div>
+                <a href="{{ url_for('discounts') }}" class="list-group-item list-group-item-action {{ 'active' if 'discounts' in request.path else '' }}">
+                    <i class="fas fa-tags me-3"></i> <span class="menu-text">Voucher</span>
+                </a>
+                <a href="{{ url_for('banners') }}" class="list-group-item list-group-item-action {{ 'active' if 'banners' in request.path else '' }}">
+                    <i class="fas fa-images me-3"></i> <span class="menu-text">Banner App</span>
+                </a>
+
+                <div class="sidebar-heading">Pelanggan</div>
+                <a href="{{ url_for('customers') }}" class="list-group-item list-group-item-action {{ 'active' if 'customers' in request.path else '' }}">
+                    <i class="fas fa-users me-3"></i> <span class="menu-text">Data Pelanggan</span>
+                </a>
+                <a href="{{ url_for('reviews') }}" class="list-group-item list-group-item-action {{ 'active' if 'reviews' in request.path else '' }}">
+                    <i class="fas fa-star me-3"></i> <span class="menu-text">Ulasan</span>
+                </a>
+                <a href="{{ url_for('favorites') }}" class="list-group-item list-group-item-action {{ 'active' if 'favorites' in request.path else '' }}">
+                    <i class="fas fa-heart me-3"></i> <span class="menu-text">Favorit</span>
+                </a>
+
+                <div class="sidebar-heading">Pengaturan</div>
+                <a href="{{ url_for('profile') }}" class="list-group-item list-group-item-action {{ 'active' if 'profile' in request.path else '' }}">
+                    <i class="fas fa-user-circle me-3"></i> <span class="menu-text">Akun Saya</span>
+                </a>
+                
+                <div style="height: 30px;"></div> </div>
+
+            <div class="sidebar-footer">
+                <a href="{{ url_for('logout') }}" class="list-group-item list-group-item-action text-white" style="background: transparent;">
+                    <i class="fas fa-sign-out-alt me-3 text-danger"></i> <span class="menu-text fw-bold">Keluar</span>
+                </a>
+            </div>
+
+        </div>
+        {% endif %}
+
+        <div id="page-content-wrapper" {% if not current_user.is_authenticated %}style="margin-left: 0;"{% endif %}>
+            {% if current_user.is_authenticated %}
+            <nav class="navbar navbar-expand-lg">
+                <div class="d-flex align-items-center w-100">
+                    <button class="btn btn-light text-primary shadow-sm" id="menu-toggle">
+                        <i class="fas fa-bars fa-lg"></i>
+                    </button>
+                    <div class="ms-auto d-flex align-items-center">
+                        <span class="fw-bold text-primary me-3 d-none d-md-block">{{ current_user.username }}</span>
+                        <img src="https://ui-avatars.com/api/?name={{ current_user.username }}&background=2563eb&color=fff" class="rounded-circle shadow-sm" width="40">
+                    </div>
+                </div>
+            </nav>
+            {% endif %}
+
+            <div class="container-fluid-content">
+                {% with messages = get_flashed_messages(with_categories=true) %}
+                    {% if messages %}
+                        {% for category, message in messages %}
+                            <div class="alert alert-{{ category }} alert-dismissible fade show shadow-sm border-0 mb-4" role="alert">
+                                {{ message }}
+                                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                            </div>
+                        {% endfor %}
+                    {% endif %}
+                {% endwith %}
+                {% block content %}{% endblock %}
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    {% if current_user.is_authenticated %}
+    <script>
+        var toggleButton = document.getElementById("menu-toggle");
+        var wrapper = document.getElementById("wrapper");
+        toggleButton.onclick = function () { wrapper.classList.toggle("toggled"); };
+    </script>
+    {% endif %}
+</body>
+</html>

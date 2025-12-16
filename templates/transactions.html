@@ -1,0 +1,187 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<style>
+    /* STYLE UNTUK MODE CETAK (PDF/EXPORT) */
+    @media print {
+        #sidebar-wrapper, .navbar, .btn, .no-print, footer, .alert { 
+            display: none !important; 
+        }
+        #page-content-wrapper { 
+            margin: 0 !important; 
+            width: 100% !important; 
+            padding: 0 !important; 
+        }
+        .card { 
+            border: none !important; 
+            box-shadow: none !important; 
+        }
+        
+        /* Munculkan Header Laporan */
+        .print-header { 
+            display: block !important; 
+            text-align: center; 
+            border-bottom: 2px solid #000; 
+            padding-bottom: 10px; 
+            margin-bottom: 20px; 
+        }
+
+        /* Munculkan Kotak Ringkasan saat Cetak */
+        .print-summary {
+            display: flex !important;
+            justify-content: space-around;
+            margin-bottom: 20px;
+            padding: 15px;
+            border: 1px solid #ddd;
+            border-radius: 10px;
+        }
+    }
+
+    /* Sembunyikan elemen laporan di layar browser */
+    .print-header, .print-summary { display: none; }
+    
+    .row-discount { background-color: rgba(255, 193, 7, 0.05) !important; }
+    
+    .stats-card {
+        background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
+        color: white;
+        border-radius: 15px;
+        border: none;
+    }
+</style>
+
+<div class="print-header">
+    <h2 class="fw-bold">NUSA NIAGA - LAPORAN TRANSAKSI</h2>
+    <p class="small fw-bold">Tanggal Cetak: <span id="display_print_date"></span></p>
+</div>
+
+<div class="print-summary">
+    <div class="text-center">
+        <small class="text-muted d-block text-uppercase fw-bold">Total Omzet</small>
+        <h4 class="fw-bold text-primary mb-0" id="print_total_omzet">Rp 0</h4>
+    </div>
+    <div class="text-center">
+        <small class="text-muted d-block text-uppercase fw-bold">Jumlah Transaksi</small>
+        <h4 class="fw-bold text-dark mb-0" id="print_total_count">0</h4>
+    </div>
+</div>
+
+<div class="d-flex justify-content-between align-items-start mb-4 no-print">
+    <div>
+        <h4 class="fw-bold text-primary mb-1">Riwayat Transaksi</h4>
+        <p class="text-muted small mb-0">Kelola penjualan dan pantau performa omzet toko.</p>
+    </div>
+    
+    <div class="d-flex gap-2">
+        <a href="{{ url_for('add_transaction') }}" class="btn btn-primary px-4 fw-bold shadow-sm">
+            <i class="fas fa-plus-circle me-2"></i>Transaksi Baru
+        </a>
+        <div class="dropdown">
+            <button class="btn btn-outline-secondary dropdown-toggle shadow-sm" type="button" data-bs-toggle="dropdown">
+                <i class="fas fa-download me-1"></i> Ekspor
+            </button>
+            <ul class="dropdown-menu dropdown-menu-end shadow border-0">
+                <li><a class="dropdown-item text-success" href="javascript:void(0)" onclick="shareWA()"><i class="fab fa-whatsapp me-2"></i>WA Laporan</a></li>
+                <li><a class="dropdown-item text-danger" href="javascript:void(0)" onclick="handlePrint()"><i class="fas fa-file-pdf me-2"></i>Cetak PDF</a></li>
+            </ul>
+        </div>
+    </div>
+</div>
+
+<div class="row mb-4 no-print">
+    <div class="col-md-4">
+        <div class="card stats-card shadow-sm h-100">
+            <div class="card-body p-4">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <h6 class="text-white-50 small fw-bold text-uppercase mb-1">Total Omzet</h6>
+                        <h3 class="fw-bold mb-0" id="total_omzet_display">Rp 0</h3>
+                    </div>
+                    <i class="fas fa-money-bill-wave fa-2x text-white bg-white bg-opacity-20 p-3 rounded-circle"></i>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card border-0 shadow-sm h-100" style="border-radius: 15px;">
+            <div class="card-body p-4">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <h6 class="text-muted small fw-bold text-uppercase mb-1">Jumlah Transaksi</h6>
+                        <h3 class="fw-bold mb-0 text-dark" id="total_count_display">0</h3>
+                    </div>
+                    <i class="fas fa-shopping-cart fa-2x text-primary bg-primary bg-opacity-10 p-3 rounded-circle"></i>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="card border-0 shadow-sm">
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0">
+                <thead class="bg-light text-muted small text-uppercase">
+                    <tr>
+                        <th class="ps-4">Waktu</th>
+                        <th>Pelanggan</th>
+                        <th>Produk & Diskon</th>
+                        <th class="text-end pe-4">Total Akhir</th>
+                    </tr>
+                </thead>
+                <tbody id="transaction_list">
+                    {% for t in transactions %}
+                    <tr class="data-row {{ 'row-discount' if t.discount_voucher > 0 else '' }}">
+                        <td class="ps-4 text-muted small">{{ t.date.strftime('%d/%m/%Y %H:%M') }}</td>
+                        <td class="fw-bold">{{ t.customer_name }}</td>
+                        <td>
+                            <div class="fw-bold">{{ t.product.name }} <span class="badge bg-light text-dark border">x{{ t.quantity }}</span></div>
+                            {% if t.discount_voucher > 0 %}
+                            <small class="text-danger fw-bold"><i class="fas fa-tags me-1"></i>-Rp {{ "{:,.0f}".format(t.discount_voucher) }}</small>
+                            {% endif %}
+                        </td>
+                        <td class="text-end pe-4 fw-bold {{ 'text-danger' if t.discount_voucher > 0 else 'text-success' }} value-cell" data-value="{{ t.final_price }}">
+                            Rp {{ "{:,.0f}".format(t.final_price) }}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<script>
+    function calculateStats() {
+        let total = 0;
+        let rows = document.querySelectorAll('.data-row');
+        rows.forEach(row => {
+            total += parseInt(row.querySelector('.value-cell').getAttribute('data-value')) || 0;
+        });
+
+        const formattedTotal = "Rp " + new Intl.NumberFormat('id-ID').format(total);
+        
+        // Isi tampilan di layar
+        document.getElementById('total_omzet_display').innerText = formattedTotal;
+        document.getElementById('total_count_display').innerText = rows.length;
+
+        // Isi tampilan untuk mode cetak (PDF)
+        document.getElementById('print_total_omzet').innerText = formattedTotal;
+        document.getElementById('print_total_count').innerText = rows.length;
+    }
+
+    document.addEventListener('DOMContentLoaded', calculateStats);
+
+    function handlePrint() {
+        const options = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' };
+        document.getElementById('display_print_date').innerText = new Date().toLocaleString('id-ID', options) + " WIB";
+        window.print();
+    }
+
+    function shareWA() {
+        let t = document.getElementById('total_omzet_display').innerText;
+        let c = document.getElementById('total_count_display').innerText;
+        window.open(`https://wa.me/?text=${encodeURIComponent('*LAPORAN NUSA NIAGA*\n💰 Omzet: ' + t + '\n📦 Transaksi: ' + c)}`, '_blank');
+    }
+</script>
+{% endblock %}
