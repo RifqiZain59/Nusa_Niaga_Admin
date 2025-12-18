@@ -4,7 +4,8 @@
     <div class="col-md-8">
         <div class="card p-5 border-0 shadow-sm">
             <h4 class="mb-4 fw-bold text-primary">Edit Produk</h4>
-            <form action="{{ url_for('edit', id=product.id) }}" method="POST">
+            
+            <form action="{{ url_for('edit', id=product.id) }}" method="POST" enctype="multipart/form-data">
                 
                 <div class="row">
                     <div class="col-md-6 mb-3">
@@ -26,7 +27,9 @@
                 <div class="row">
                     <div class="col-md-6 mb-3">
                         <label class="form-label text-muted small fw-bold">Harga Satuan (Rp)</label>
-                        <input type="number" name="price" value="{{ product.price }}" class="form-control form-control-lg" required>
+                        <input type="text" id="priceDisplay" class="form-control form-control-lg" required 
+                               value="{{ '{:,.0f}'.format(product.price).replace(',', '.') }}">
+                        <input type="hidden" name="price" id="priceReal" value="{{ product.price }}">
                     </div>
                     <div class="col-md-6 mb-3">
                         <label class="form-label text-muted small fw-bold">Stok</label>
@@ -39,10 +42,46 @@
                     <textarea name="description" class="form-control" rows="2">{{ product.description }}</textarea>
                 </div>
 
+                <div class="mb-4">
+                    <label class="form-label text-muted small fw-bold">Foto Produk</label>
+                    <div class="d-flex align-items-center gap-3 p-3 border rounded bg-light">
+                        <div class="text-center">
+                            <p class="small text-muted mb-1">Saat Ini:</p>
+                            <img src="{{ url_for('product_image', id=product.id) }}" 
+                                 class="rounded shadow-sm border" 
+                                 style="width: 80px; height: 80px; object-fit: cover;">
+                        </div>
+                        <div class="flex-grow-1">
+                            <input type="file" name="image" class="form-control" accept="image/*">
+                            <p class="small text-muted mt-1 mb-0">*Kosongkan jika tidak ingin mengubah foto.</p>
+                        </div>
+                    </div>
+                </div>
+
                 <button type="submit" class="btn btn-warning text-white btn-lg w-100 shadow-sm mt-2">Update Produk</button>
                 <a href="{{ url_for('products') }}" class="btn btn-light w-100 mt-2">Batal</a>
             </form>
         </div>
     </div>
 </div>
+
+<script>
+    const displayInput = document.getElementById('priceDisplay');
+    const realInput = document.getElementById('priceReal');
+
+    displayInput.addEventListener('input', function(e) {
+        // Hapus semua karakter kecuali angka
+        let rawValue = this.value.replace(/\D/g, '');
+        
+        // Simpan angka murni ke input hidden
+        realInput.value = rawValue;
+        
+        // Format tampilan dengan titik ribuan
+        if (rawValue) {
+            this.value = new Intl.NumberFormat('id-ID').format(rawValue);
+        } else {
+            this.value = '';
+        }
+    });
+</script>
 {% endblock %}

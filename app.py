@@ -1,26 +1,25 @@
-from flask import Flask, render_template, request, redirect, url_for, flash, send_file
+from flask import Flask, render_template, request, redirect, url_for, flash, send_file, jsonify, make_response
 from flask_sqlalchemy import SQLAlchemy
 from flask_login import LoginManager, UserMixin, login_user, login_required, logout_user, current_user
 from werkzeug.security import generate_password_hash, check_password_hash
 from datetime import datetime
-from io import BytesIO # Wajib untuk membaca binary gambar
+from io import BytesIO 
 
 app = Flask(__name__)
 app.secret_key = "rahasia_nusa_niaga_blob_version" 
 
-# --- KONFIGURASI DATABASE ---
+# ==========================================
+# 1. KONFIGURASI
+# ==========================================
 app.config['SQLALCHEMY_DATABASE_URI'] = 'mysql+mysqlconnector://root:@localhost/nusa_niaga'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
-# Max upload size (opsional, misal max 16MB)
-app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024 
+app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024  # Limit 16MB
 
 db = SQLAlchemy(app)
 
-# --- KONFIGURASI LAIN ---
-POINT_VALUE = 5000      
-EARN_RATE = 10000       
+POINT_VALUE = 5000       
+EARN_RATE = 10000        
 
-# --- LOGIN SETUP ---
 login_manager = LoginManager()
 login_manager.init_app(app)
 login_manager.login_view = 'login'
@@ -29,7 +28,7 @@ login_manager.login_view = 'login'
 def load_user(user_id): return User.query.get(int(user_id))
 
 # ==========================================
-# MODEL DATABASE
+# 2. MODEL DATABASE
 # ==========================================
 
 class User(UserMixin, db.Model):
@@ -54,9 +53,13 @@ class Product(db.Model):
     price = db.Column(db.Integer, nullable=False)
     stock = db.Column(db.Integer, nullable=False)
     description = db.Column(db.Text, nullable=True)
-    transactions = db.relationship('Transaction', backref='product', lazy=True)
-    reviews_rel = db.relationship('Review', backref='product', lazy=True)
-    favorites_rel = db.relationship('Favorite', backref='product', lazy=True)
+    image_data = db.Column(db.LargeBinary, nullable=True) 
+    mimetype = db.Column(db.String(50), nullable=True)
+
+    # TAMBAHKAN INI: Agar ulasan dan favorit terhapus otomatis saat produk dihapus
+    # Kita tidak menghapus transaksi (Transaction) untuk menjaga riwayat keuangan
+    reviews_rel = db.relationship('Review', backref='product_parent', cascade="all, delete-orphan", lazy=True)
+    favorites_rel = db.relationship('Favorite', backref='product_parent', cascade="all, delete-orphan", lazy=True)
 
 class Voucher(db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -73,8 +76,6 @@ class Customer(db.Model):
     points = db.Column(db.Integer, default=0) 
     address = db.Column(db.Text, nullable=True)
     redemptions = db.relationship('PointRedemption', backref='customer', lazy=True)
-    reviews_rel = db.relationship('Review', backref='customer', lazy=True)
-    favorites_rel = db.relationship('Favorite', backref='customer', lazy=True)
 
 class PointRedemption(db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -86,6 +87,7 @@ class PointRedemption(db.Model):
 class Transaction(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     product_id = db.Column(db.Integer, db.ForeignKey('product.id'), nullable=False)
+    product = db.relationship('Product', backref='transactions')
     customer_name = db.Column(db.String(100), nullable=False)
     customer_phone = db.Column(db.String(20), nullable=True)
     customer_address = db.Column(db.Text, nullable=True)
@@ -105,20 +107,21 @@ class Review(db.Model):
     rating = db.Column(db.Integer, nullable=False)
     comment = db.Column(db.Text, nullable=True)
     created_at = db.Column(db.DateTime, default=datetime.now)
+    customer = db.relationship('Customer', backref='reviews')
+    product = db.relationship('Product', backref='reviews')
 
 class Favorite(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     customer_id = db.Column(db.Integer, db.ForeignKey('customer.id'), nullable=False)
     product_id = db.Column(db.Integer, db.ForeignKey('product.id'), nullable=False)
     created_at = db.Column(db.DateTime, default=datetime.now)
+    customer = db.relationship('Customer', backref='favorites')
+    product = db.relationship('Product', backref='favorites')
 
-# --- MODEL BANNER BARU (BLOB) ---
 class Banner(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     title = db.Column(db.String(100), nullable=False)
-    # Menyimpan Data Binary (Gambar)
     image_data = db.Column(db.LargeBinary, nullable=False) 
-    # Menyimpan Tipe File (jpeg/png) agar browser tahu cara bacanya
     mimetype = db.Column(db.String(50), nullable=False)
     is_active = db.Column(db.Boolean, default=True)
 
@@ -126,10 +129,9 @@ with app.app_context():
     db.create_all()
 
 # ==========================================
-# ROUTES
+# 3. WEB ROUTES (ADMIN DASHBOARD)
 # ==========================================
 
-# --- AUTH & PROFIL ---
 @app.route('/login', methods=['GET', 'POST'])
 def login():
     if current_user.is_authenticated: return redirect(url_for('index'))
@@ -154,28 +156,6 @@ def register():
 @login_required
 def logout(): logout_user(); return redirect(url_for('login'))
 
-@app.route('/profile')
-@login_required
-def profile():
-    recent_trx = Transaction.query.order_by(Transaction.date.desc()).limit(10).all()
-    return render_template('profile.html', transactions=recent_trx)
-
-@app.route('/update_profile', methods=['POST'])
-@login_required
-def update_profile():
-    current_user.full_name = request.form['full_name']
-    current_user.email = request.form['email']
-    current_user.address = request.form['address']
-    db.session.commit(); flash("Profil diperbarui.", "success"); return redirect(url_for('profile'))
-
-@app.route('/change_password', methods=['POST'])
-@login_required
-def change_password():
-    if not current_user.check_password(request.form['old_password']): flash("Password lama salah.", "danger"); return redirect(url_for('profile'))
-    if request.form['new_password'] != request.form['confirm_password']: flash("Konfirmasi salah.", "warning"); return redirect(url_for('profile'))
-    current_user.set_password(request.form['new_password']); db.session.commit(); flash("Password diganti.", "success"); return redirect(url_for('logout'))
-
-# --- DASHBOARD ---
 @app.route('/')
 @login_required
 def index():
@@ -185,7 +165,6 @@ def index():
     total_stock = sum(p.stock for p in products)
     return render_template('index.html', total_products=len(products), total_stock=total_stock, total_customers=total_customers, latest_transactions=latest)
 
-# --- PRODUK & KATEGORI ---
 @app.route('/products')
 @login_required
 def products(): return render_template('products.html', products=Product.query.all())
@@ -195,24 +174,85 @@ def products(): return render_template('products.html', products=Product.query.a
 def add():
     categories = Category.query.all()
     if request.method == 'POST':
-        db.session.add(Product(name=request.form['name'], category_id=request.form.get('category_id'), price=int(request.form['price']), stock=int(request.form['stock']), description=request.form['description']))
-        db.session.commit(); flash("Produk ditambah.", "success"); return redirect(url_for('products'))
+        # Penanganan Gambar
+        file = request.files.get('image')
+        img_data = None
+        mtype = None
+        if file and file.filename != '':
+            img_data = file.read()
+            mtype = file.mimetype
+            
+        new_prod = Product(
+            name=request.form['name'], 
+            category_id=request.form.get('category_id'), 
+            price=int(request.form['price']), 
+            stock=int(request.form['stock']), 
+            description=request.form['description'],
+            image_data=img_data,
+            mimetype=mtype
+        )
+        db.session.add(new_prod)
+        db.session.commit()
+        flash("Produk ditambah.", "success")
+        return redirect(url_for('products'))
     return render_template('add.html', categories=categories)
 
 @app.route('/edit/<int:id>', methods=['POST', 'GET'])
 @login_required
 def edit(id):
-    p = Product.query.get_or_404(id); categories = Category.query.all()
+    p = Product.query.get_or_404(id)
+    categories = Category.query.all()
     if request.method == 'POST':
-        p.name=request.form['name']; p.category_id=request.form.get('category_id'); p.price=int(request.form['price']); p.stock=int(request.form['stock']); p.description=request.form['description']; db.session.commit(); flash("Diupdate.", "info"); return redirect(url_for('products'))
+        p.name=request.form['name']
+        p.category_id=request.form.get('category_id')
+        p.price=int(request.form['price'])
+        p.stock=int(request.form['stock'])
+        p.description=request.form['description']
+        
+        # Update Gambar jika ada file baru
+        file = request.files.get('image')
+        if file and file.filename != '':
+            p.image_data = file.read()
+            p.mimetype = file.mimetype
+            
+        db.session.commit()
+        flash("Diupdate.", "info")
+        return redirect(url_for('products'))
     return render_template('edit.html', product=p, categories=categories)
 
 @app.route('/delete/<int:id>')
 @login_required
 def delete(id):
-    try: db.session.delete(Product.query.get_or_404(id)); db.session.commit(); flash("Dihapus.", "danger")
-    except: db.session.rollback(); flash("Gagal hapus.", "warning")
+    p = Product.query.get_or_404(id)
+    try:
+        # 1. Cek apakah ada transaksi. Jika ada, sebaiknya jangan hapus permanen 
+        # atau set product_id di transaksi menjadi NULL (jika kolom membolehkan).
+        has_transaction = Transaction.query.filter_by(product_id=id).first()
+        if has_transaction:
+            flash("Gagal: Produk ini tidak bisa dihapus karena memiliki riwayat transaksi.", "warning")
+            return redirect(url_for('products'))
+
+        # 2. Hapus ulasan dan favorit terkait secara manual
+        Review.query.filter_by(product_id=id).delete()
+        Favorite.query.filter_by(product_id=id).delete()
+
+        # 3. Hapus produk
+        db.session.delete(p)
+        db.session.commit()
+        flash(f"Produk '{p.name}' berhasil dihapus.", "danger")
+    except Exception as e:
+        db.session.rollback()
+        flash(f"Gagal hapus: {str(e)}", "warning")
+    
     return redirect(url_for('products'))
+
+# ROUTE UNTUK MENAMPILKAN GAMBAR DARI DATABASE
+@app.route('/product_image/<int:id>')
+def product_image(id):
+    p = Product.query.get_or_404(id)
+    if p.image_data:
+        return send_file(BytesIO(p.image_data), mimetype=p.mimetype)
+    return redirect("https://via.placeholder.com/150")
 
 @app.route('/categories', methods=['GET', 'POST'])
 @login_required
@@ -227,18 +267,6 @@ def delete_category(id):
     except: db.session.rollback()
     return redirect(url_for('categories'))
 
-# --- VOUCHER ---
-@app.route('/discounts', methods=['GET', 'POST'])
-@login_required
-def discounts():
-    if request.method == 'POST': db.session.add(Voucher(code=request.form['code'].upper(), discount_amount=int(request.form['amount']))); db.session.commit(); flash("Voucher dibuat.", "success"); return redirect(url_for('discounts'))
-    return render_template('discounts.html', vouchers=Voucher.query.all())
-
-@app.route('/delete_discount/<int:id>')
-@login_required
-def delete_discount(id): db.session.delete(Voucher.query.get_or_404(id)); db.session.commit(); return redirect(url_for('discounts'))
-
-# --- CRM (PELANGGAN) ---
 @app.route('/customers')
 @login_required
 def customers():
@@ -253,14 +281,134 @@ def customer_detail(id):
     fav = Favorite.query.filter_by(customer_id=id).all()
     return render_template('customer_detail.html', c=c, transactions=trx, reviews=rev, favorites=fav)
 
+@app.route('/discounts', methods=['GET', 'POST'])
+@login_required
+def discounts():
+    if request.method == 'POST': db.session.add(Voucher(code=request.form['code'].upper(), discount_amount=int(request.form['amount']))); db.session.commit(); flash("Voucher dibuat.", "success"); return redirect(url_for('discounts'))
+    return render_template('discounts.html', vouchers=Voucher.query.all())
+
+@app.route('/delete_discount/<int:id>')
+@login_required
+def delete_discount(id): db.session.delete(Voucher.query.get_or_404(id)); db.session.commit(); return redirect(url_for('discounts'))
+
+@app.route('/transactions')
+@login_required
+def transactions(): 
+    return render_template('transactions.html', transactions=Transaction.query.order_by(Transaction.date.desc()).all())
+
+@app.route('/add_transaction', methods=['GET', 'POST'])
+@login_required
+def add_transaction():
+    products = Product.query.all()
+    if request.method == 'POST':
+        try:
+            pid = request.form['product_id']
+            qty = int(request.form['quantity'])
+            c_name = request.form['customer_name']
+            c_phone = request.form['customer_phone']
+            c_addr = request.form['customer_address']
+            pay = request.form['payment_method']
+            ivoucher = request.form.get('voucher_code', '').strip().upper()
+            
+            prod = Product.query.get(pid)
+            if prod.stock < qty: 
+                flash("Stok kurang!", "danger")
+                return redirect(url_for('add_transaction'))
+            
+            gross = prod.price * qty
+            disc = 0
+            code = None
+            
+            if ivoucher:
+                v = Voucher.query.filter_by(code=ivoucher, is_active=True).first()
+                if v:
+                    disc = v.discount_amount
+                    code = ivoucher
+                    if disc > gross: disc = gross
+                else:
+                    flash("Kode Voucher Salah", "warning")
+            
+            final = gross - disc
+            cust = Customer.query.filter_by(phone=c_phone).first()
+            if not cust:
+                cust = Customer(name=c_name, phone=c_phone, address=c_addr, points=0)
+                db.session.add(cust)
+            
+            earn = int(final / EARN_RATE)
+            cust.points += earn
+            prod.stock -= qty
+            
+            new_trx = Transaction(
+                product_id=pid, customer_name=c_name, customer_phone=c_phone, customer_address=c_addr,
+                quantity=qty, total_price=gross, voucher_code=code, discount_voucher=disc,
+                points_earned=earn, final_price=final, payment_method=pay
+            )
+            db.session.add(new_trx); db.session.commit()
+            flash(f"Transaksi Sukses! Poin +{earn}", "success")
+            return redirect(url_for('transactions'))
+        except Exception as e:
+            flash(f"Error: {e}", "danger")
+            return redirect(url_for('add_transaction'))
+    return render_template('add_transaction.html', products=products)
+
+@app.route('/banners')
+@login_required
+def banners(): return render_template('banners.html', banners=Banner.query.all())
+
+@app.route('/add_banner', methods=['POST'])
+@login_required
+def add_banner():
+    title = request.form.get('title')
+    file = request.files['image']
+    if file: db.session.add(Banner(title=title, image_data=file.read(), mimetype=file.mimetype)); db.session.commit(); flash("Banner ditambahkan.", "success")
+    else: flash("File gambar wajib diisi.", "danger")
+    return redirect(url_for('banners'))
+
+@app.route('/edit_banner', methods=['POST'])
+@login_required
+def edit_banner():
+    try:
+        b_id = request.form.get('banner_id')
+        b = Banner.query.get_or_404(b_id)
+        b.title = request.form.get('title')
+        b.is_active = True if request.form.get('is_active') else False
+        file = request.files.get('image')
+        if file and file.filename != '':
+            b.image_data = file.read()
+            b.mimetype = file.mimetype
+        db.session.commit(); flash("Banner diperbarui.", "success")
+    except Exception as e: flash(f"Gagal update banner: {e}", "danger")
+    return redirect(url_for('banners'))
+
+@app.route('/delete_banner/<int:id>')
+@login_required
+def delete_banner(id):
+    b = Banner.query.get_or_404(id); db.session.delete(b); db.session.commit(); flash("Banner dihapus.", "warning"); return redirect(url_for('banners'))
+
+@app.route('/banner_image/<int:id>')
+def banner_image(id):
+    b = Banner.query.get_or_404(id)
+    return send_file(BytesIO(b.image_data), mimetype=b.mimetype)
+
+@app.route('/profile')
+@login_required
+def profile():
+    recent_trx = Transaction.query.order_by(Transaction.date.desc()).limit(10).all()
+    return render_template('profile.html', transactions=recent_trx)
+
+@app.route('/update_profile', methods=['POST'])
+@login_required
+def update_profile():
+    current_user.full_name = request.form['full_name']; current_user.email = request.form['email']; current_user.address = request.form['address']
+    db.session.commit(); flash("Profil diperbarui.", "success"); return redirect(url_for('profile'))
+
 @app.route('/update_customer', methods=['POST'])
 @login_required
 def update_customer():
     c = Customer.query.get_or_404(request.form.get('customer_id'))
     try:
-        c.name = request.form.get('name'); c.phone = request.form.get('phone')
-        c.email = request.form.get('email'); c.address = request.form.get('address')
-        if request.form.get('password'): c.password = request.form.get('password')
+        c.name = request.form.get('name'); c.phone = request.form.get('phone'); c.email = request.form.get('email'); c.address = request.form.get('address')
+        if request.form.get('password'): c.password = generate_password_hash(request.form.get('password'))
         db.session.commit(); flash("Pelanggan diperbarui.", "success")
     except Exception as e: db.session.rollback(); flash(f"Error: {e}", "danger")
     return redirect(url_for('customer_detail', id=c.id))
@@ -288,113 +436,172 @@ def delete_review(id): db.session.delete(Review.query.get_or_404(id)); db.sessio
 @login_required
 def favorites(): return render_template('favorites.html', favorites=Favorite.query.order_by(Favorite.created_at.desc()).all())
 
-# --- TRANSAKSI (POS) ---
-@app.route('/transactions')
-@login_required
-def transactions(): return render_template('transactions.html', transactions=Transaction.query.order_by(Transaction.date.desc()).all())
-
-@app.route('/add_transaction', methods=['GET', 'POST'])
-@login_required
-def add_transaction():
-    products = Product.query.all()
-    if request.method == 'POST':
-        try:
-            pid = request.form['product_id']; qty = int(request.form['quantity']); c_name = request.form['customer_name']; c_phone = request.form['customer_phone']; c_addr = request.form['customer_address']; pay = request.form['payment_method']; ivoucher = request.form.get('voucher_code', '').strip().upper()
-            prod = Product.query.get(pid)
-            if prod.stock < qty: flash("Stok kurang!", "danger"); return redirect(url_for('add_transaction'))
-            gross = prod.price * qty; disc = 0; code = None
-            if ivoucher:
-                v = Voucher.query.filter_by(code=ivoucher, is_active=True).first()
-                if v: disc = v.discount_amount; code = ivoucher; disc = gross if disc > gross else disc
-                else: flash("Kode Voucher Salah", "warning")
-            final = gross - disc
-            
-            cust = Customer.query.filter_by(phone=c_phone).first()
-            if not cust: cust = Customer(name=c_name, phone=c_phone, address=c_addr, points=0); db.session.add(cust)
-            earn = int(final / EARN_RATE); cust.points += earn
-            
-            prod.stock -= qty
-            db.session.add(Transaction(product_id=pid, customer_name=c_name, customer_phone=c_phone, customer_address=c_addr, quantity=qty, total_price=gross, voucher_code=code, discount_voucher=disc, points_earned=earn, final_price=final, payment_method=pay))
-            db.session.commit()
-            flash(f"Sukses! Poin +{earn}", "success"); return redirect(url_for('transactions'))
-        except Exception as e: flash(f"Error: {e}", "danger"); return redirect(url_for('add_transaction'))
-    return render_template('add_transaction.html', products=products)
-
-@app.route('/generate_dummy')
-@login_required
-def generate_dummy():
-    c = Customer.query.first(); p = Product.query.first()
-    if c and p:
-        if not Review.query.all(): db.session.add(Review(customer_id=c.id, product_id=p.id, rating=5, comment="Mantap!")); db.session.add(Review(customer_id=c.id, product_id=p.id, rating=4, comment="Ok."))
-        if not Favorite.query.all(): db.session.add(Favorite(customer_id=c.id, product_id=p.id))
-        db.session.commit(); flash("Dummy Data Dibuat!", "success")
-    else: flash("Perlu data transaksi/produk dulu.", "warning")
-    return redirect(url_for('index'))
-
 # ==========================================
-# BANNERS (GAMBAR DI DATABASE)
+# 4. API SERVICE (MOBILE APP)
 # ==========================================
 
-# 1. Tampilkan Halaman
-@app.route('/banners')
-@login_required
-def banners():
-    return render_template('banners.html', banners=Banner.query.all())
+def api_response(status, message, data=None):
+    return jsonify({'status': status, 'message': message, 'data': data})
 
-# 2. Tambah Banner (Simpan BLOB)
-@app.route('/add_banner', methods=['POST'])
-@login_required
-def add_banner():
-    title = request.form.get('title')
-    file = request.files['image']
-    
-    if file:
-        new_banner = Banner(
-            title=title,
-            image_data=file.read(), # Baca binary file
-            mimetype=file.mimetype  # Simpan tipe (jpg/png)
-        )
-        db.session.add(new_banner)
-        db.session.commit()
-        flash("Banner ditambahkan.", "success")
-    else:
-        flash("File gambar wajib diisi.", "danger")
+@app.route('/api/register', methods=['POST'])
+def api_register():
+    try:
+        data = request.get_json(silent=True)
+        if not data: return api_response('error', 'Data JSON tidak valid')
+        name = data.get('name'); phone = data.get('phone'); password = data.get('password')
+        if not name or not phone or not password: return api_response('error', 'Data tidak lengkap')
+        if Customer.query.filter_by(phone=phone).first(): return api_response('error', 'Nomor HP sudah terdaftar')
+        new_cust = Customer(name=name, phone=phone, password=generate_password_hash(password), points=0)
+        db.session.add(new_cust); db.session.commit()
+        return api_response('success', 'Registrasi berhasil', {'id': new_cust.id})
+    except Exception as e: db.session.rollback(); return api_response('error', f'Error: {str(e)}')
+
+@app.route('/api/login', methods=['POST'])
+def api_login():
+    try:
+        data = request.get_json(silent=True)
+        phone = data.get('phone'); password = data.get('password')
+        cust = Customer.query.filter_by(phone=phone).first()
+        if cust and cust.password and check_password_hash(cust.password, password):
+            return api_response('success', 'Login berhasil', {
+                'id': cust.id, 'name': cust.name, 'phone': cust.phone, 'points': cust.points, 'address': cust.address, 'email': cust.email
+            })
+        return api_response('error', 'Nomor HP atau Password salah')
+    except Exception as e: return api_response('error', str(e))
+
+@app.route('/api/products', methods=['GET'])
+def api_products():
+    try:
+        products = Product.query.all()
+        data = []
+        for p in products:
+            data.append({
+                'id': p.id, 'name': p.name, 'category': p.category.name if p.category else 'Umum',
+                'price': p.price, 'stock': p.stock, 'description': p.description,
+                'image_url': url_for('product_image', id=p.id, _external=True) 
+            })
+        return api_response('success', 'Data produk berhasil', data)
+    except Exception as e: return api_response('error', str(e))
+
+@app.route('/api/banners', methods=['GET'])
+def api_banners():
+    try:
+        banners = Banner.query.filter_by(is_active=True).all()
+        data = [{'id': b.id, 'title': b.title, 'image_url': url_for('banner_image', id=b.id, _external=True)} for b in banners]
+        return api_response('success', 'Data banner berhasil', data)
+    except Exception as e: return api_response('error', str(e))
+
+@app.route('/api/checkout', methods=['POST'])
+def api_checkout():
+    try:
+        data = request.get_json(silent=True)
+        cust = Customer.query.get(data.get('customer_id'))
+        if not cust: return api_response('error', 'Pelanggan tidak ditemukan')
+        items = data.get('items')
         
-    return redirect(url_for('banners'))
+        voucher_code = data.get('voucher_code'); discount_amount = 0; valid_voucher = None
+        if voucher_code:
+            v = Voucher.query.filter_by(code=voucher_code.upper(), is_active=True).first()
+            if v: discount_amount = v.discount_amount; valid_voucher = v.code
 
-# 3. Edit Banner
-@app.route('/edit_banner', methods=['POST'])
-@login_required
-def edit_banner():
-    b = Banner.query.get_or_404(request.form.get('banner_id'))
-    b.title = request.form.get('title')
-    b.is_active = True if request.form.get('is_active') else False
+        remaining_discount = discount_amount; total_pay = 0; total_points = 0
+        for item in items:
+            p = Product.query.get(item['product_id']); qty = int(item['qty'])
+            if not p or p.stock < qty: return api_response('error', f'Stok {p.name if p else ""} habis/kurang')
+            gross = p.price * qty; curr_disc = 0
+            if remaining_discount > 0:
+                curr_disc = gross if remaining_discount >= gross else remaining_discount
+                remaining_discount -= curr_disc
+            final = gross - curr_disc; earn = int(final / EARN_RATE)
+            p.stock -= qty
+            db.session.add(Transaction(
+                product_id=p.id, customer_name=cust.name, customer_phone=cust.phone, customer_address=cust.address,
+                quantity=qty, total_price=gross, voucher_code=valid_voucher if curr_disc > 0 else None,
+                discount_voucher=curr_disc, points_earned=earn, final_price=final, payment_method=data.get('payment_method', 'Cash')
+            ))
+            total_pay += final; total_points += earn
+        cust.points += total_points; db.session.commit()
+        return api_response('success', 'Transaksi Berhasil', {'total_price': total_pay, 'points_earned': total_points, 'new_balance': cust.points})
+    except Exception as e: db.session.rollback(); return api_response('error', str(e))
+
+@app.route('/api/redeem', methods=['POST'])
+def api_redeem():
+    try:
+        data = request.get_json(silent=True)
+        cust_id = data.get('customer_id'); points = int(data.get('points'))
+        cust = Customer.query.get(cust_id)
+        if cust and cust.points >= points:
+            cust.points -= points
+            db.session.add(PointRedemption(customer_id=cust_id, points_spent=points, description=data.get('description', 'Penukaran')))
+            db.session.commit()
+            return api_response('success', 'Berhasil', {'new_balance': cust.points})
+        return api_response('error', 'Gagal')
+    except Exception as e: return api_response('error', str(e))
+
+@app.route('/api/favorites/<int:customer_id>', methods=['GET'])
+def api_get_favorites(customer_id):
+    try:
+        favs = Favorite.query.filter_by(customer_id=customer_id).all()
+        data = [{'product_id': f.product.id, 'name': f.product.name, 'price': f.product.price, 'image_url': url_for('product_image', id=f.product.id, _external=True)} for f in favs if f.product]
+        return api_response('success', 'OK', data)
+    except Exception as e: return api_response('error', str(e))
+
+# Tambahkan ini di bagian API SERVICE (MOBILE APP) pada app.py
+@app.route('/api/products/<int:id>', methods=['GET'])
+def api_product_detail(id):
+    p = Product.query.get(id)
+    if not p:
+        return jsonify({'status': 'error', 'message': 'Data tidak ditemukan (404)'}), 404
     
-    if 'image' in request.files:
-        file = request.files['image']
-        if file and file.filename != '':
-            b.image_data = file.read() # Timpa data lama
-            b.mimetype = file.mimetype
-            
-    db.session.commit()
-    flash("Banner diperbarui.", "success")
-    return redirect(url_for('banners'))
+    # Ambil customer_id dari parameter untuk cek favorit user tersebut
+    customer_id = request.args.get('customer_id', type=int)
+    
+    is_fav = False
+    if customer_id:
+        # Cek apakah data favorit ada di tabel Favorite
+        fav = Favorite.query.filter_by(customer_id=customer_id, product_id=id).first()
+        is_fav = True if fav else False
 
-# 4. Hapus Banner
-@app.route('/delete_banner/<int:id>')
-@login_required
-def delete_banner(id):
-    b = Banner.query.get_or_404(id)
-    db.session.delete(b)
-    db.session.commit()
-    flash("Banner dihapus.", "warning")
-    return redirect(url_for('banners'))
+    return jsonify({
+        'id': p.id,
+        'name': p.name,
+        'price': p.price,
+        'description': p.description,
+        'is_favorite': is_fav, # Kirim status ini ke Flutter
+        'status': 'success'
+    })
 
-# 5. ROUTE KHUSUS: MENAMPILKAN GAMBAR DARI DB
-@app.route('/banner_image/<int:id>')
-def banner_image(id):
-    b = Banner.query.get_or_404(id)
-    return send_file(BytesIO(b.image_data), mimetype=b.mimetype)
+@app.route('/api/toggle_favorite', methods=['POST'])
+def api_toggle_favorite():
+    try:
+        data = request.get_json(silent=True)
+        cust_id = data.get('customer_id'); prod_id = data.get('product_id')
+        existing = Favorite.query.filter_by(customer_id=cust_id, product_id=prod_id).first()
+        if existing:
+            db.session.delete(existing); is_fav = False
+        else:
+            db.session.add(Favorite(customer_id=cust_id, product_id=prod_id)); is_fav = True
+        db.session.commit()
+        return api_response('success', 'Updated', {'is_favorite': is_fav})
+    except Exception as e: return api_response('error', str(e))
 
-if __name__ == "__main__":
-    app.run(debug=True)
+# Tambahkan di bagian 4. API SERVICE (MOBILE APP) pada app.py
+
+@app.route('/api/vouchers', methods=['GET'])
+def api_get_vouchers():
+    try:
+        # Mengambil semua voucher dengan status is_active = True
+        vouchers = Voucher.query.filter_by(is_active=True).all()
+        data = []
+        for v in vouchers:
+            data.append({
+                'id': v.id,
+                'code': v.code,
+                'discount_amount': v.discount_amount
+            })
+        return api_response('success', 'Daftar voucher berhasil diambil', data)
+    except Exception as e:
+        return api_response('error', str(e))
+
+if __name__ == '__main__':
+    app.run(host='0.0.0.0', port=5000, debug=True)

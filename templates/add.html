@@ -4,46 +4,67 @@
     <div class="col-md-8">
         <div class="card p-5 border-0 shadow-sm">
             <h4 class="mb-4 fw-bold text-primary">Tambah Produk Baru</h4>
-            <form action="{{ url_for('add') }}" method="POST">
+            <form action="{{ url_for('add') }}" method="POST" enctype="multipart/form-data">
                 
                 <div class="row">
                     <div class="col-md-6 mb-3">
                         <label class="form-label text-muted small fw-bold">Nama Produk</label>
-                        <input type="text" name="name" class="form-control form-control-lg" required placeholder="Nama...">
+                        <input type="text" name="name" class="form-control" required placeholder="Nama...">
                     </div>
-                    
                     <div class="col-md-6 mb-3">
                         <label class="form-label text-muted small fw-bold">Kategori</label>
-                        <select name="category_id" class="form-select form-select-lg" required>
+                        <select name="category_id" class="form-select" required>
                             <option value="" disabled selected>-- Pilih Kategori --</option>
                             {% for c in categories %}
                                 <option value="{{ c.id }}">{{ c.name }}</option>
                             {% endfor %}
                         </select>
-                        <div class="form-text small"><a href="{{ url_for('categories') }}">Tambah kategori baru?</a></div>
+                        <div class="form-text small"><a href="{{ url_for('categories') }}">Kelola kategori?</a></div>
                     </div>
                 </div>
 
                 <div class="row">
                     <div class="col-md-6 mb-3">
                         <label class="form-label text-muted small fw-bold">Harga Satuan (Rp)</label>
-                        <input type="number" name="price" class="form-control form-control-lg" required placeholder="0">
+                        <input type="text" id="priceDisplayAdd" class="form-control" required placeholder="0">
+                        <input type="hidden" name="price" id="priceRealAdd">
                     </div>
                     <div class="col-md-6 mb-3">
                         <label class="form-label text-muted small fw-bold">Stok Awal</label>
-                        <input type="number" name="stock" class="form-control form-control-lg" required placeholder="0">
+                        <input type="number" name="stock" class="form-control" required placeholder="0">
                     </div>
                 </div>
 
                 <div class="mb-3">
+                    <label class="form-label text-muted small fw-bold">Foto Produk</label>
+                    <input type="file" name="image" class="form-control" accept="image/*">
+                </div>
+
+                <div class="mb-4">
                     <label class="form-label text-muted small fw-bold">Deskripsi</label>
                     <textarea name="description" class="form-control" rows="2" placeholder="Ket..."></textarea>
                 </div>
 
-                <button type="submit" class="btn btn-primary btn-lg w-100 shadow-sm mt-2">Simpan Produk</button>
+                <button type="submit" class="btn btn-primary btn-lg w-100 shadow-sm">Simpan Produk & Gambar</button>
                 <a href="{{ url_for('products') }}" class="btn btn-light w-100 mt-2">Batal</a>
             </form>
         </div>
     </div>
 </div>
+
+<script>
+    const displayAdd = document.getElementById('priceDisplayAdd');
+    const realAdd = document.getElementById('priceRealAdd');
+
+    displayAdd.addEventListener('input', function(e) {
+        let rawValue = this.value.replace(/\D/g, '');
+        realAdd.value = rawValue;
+        
+        if (rawValue) {
+            this.value = new Intl.NumberFormat('id-ID').format(rawValue);
+        } else {
+            this.value = '';
+        }
+    });
+</script>
 {% endblock %}
