@@ -10,54 +10,48 @@
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     
     <style>
-        :root { --primary-blue: #2563eb; --dark-blue: #1e3a8a; --light-blue: #eff6ff; --sidebar-width: 260px; --sidebar-mini-width: 80px; }
-        body { font-family: 'Poppins', sans-serif; background-color: var(--light-blue); color: #334155; overflow-x: hidden; }
+        /* CSS VARIABLE DINAMIS DARI DATABASE */
+        :root { 
+            --primary-blue: {{ theme.primary_color }}; 
+            --dark-blue: {{ theme.sidebar_color }}; 
+            --light-blue: #eff6ff; 
+            --sidebar-width: 260px; 
+            --sidebar-mini-width: 80px; 
+        }
+        
+        body { font-family: '{{ theme.font_family }}', sans-serif; background-color: var(--light-blue); color: #334155; overflow-x: hidden; }
+        
         #wrapper { display: flex; width: 100%; transition: all 0.3s ease; }
         
-        /* --- PERBAIKAN SIDEBAR (STRUKTUR FLEXBOX) --- */
+        /* SIDEBAR CONFIG */
         #sidebar-wrapper {
-            height: 100vh; /* Wajib Fixed Height */
+            height: 100vh;
             width: var(--sidebar-width); margin-left: 0;
-            background: linear-gradient(180deg, var(--dark-blue) 0%, #1e40af 100%); 
+            background: var(--dark-blue); /* Menggunakan warna dari DB */
             color: #fff; position: fixed; z-index: 1000; transition: all 0.3s ease;
             box-shadow: 4px 0 15px rgba(37, 99, 235, 0.1); 
-            
-            /* Agar elemen tersusun atas-bawah dan logout di dasar */
-            display: flex; 
-            flex-direction: column; 
-            justify-content: space-between;
+            display: flex; flex-direction: column; justify-content: space-between;
         }
 
-        /* 1. Brand (Header Sidebar) */
         .sidebar-brand { 
             height: 70px; display: flex; align-items: center; padding: 0 1.5rem; 
             font-size: 1.5rem; font-weight: 700; border-bottom: 1px solid rgba(255,255,255,0.1);
-            flex-shrink: 0; /* Jangan mengecil */
+            flex-shrink: 0; 
         }
         
-        /* 2. Menu Tengah (Scrollable Area) */
-        .sidebar-menu-content {
-            flex-grow: 1; /* Mengambil sisa ruang */
-            overflow-y: auto; /* Scroll jika menu panjang */
-            overflow-x: hidden;
-        }
-        /* Custom Scrollbar untuk Menu */
+        .sidebar-menu-content { flex-grow: 1; overflow-y: auto; overflow-x: hidden; }
         .sidebar-menu-content::-webkit-scrollbar { width: 4px; }
         .sidebar-menu-content::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.2); border-radius: 4px; }
 
-        /* 3. Footer (Tombol Keluar) */
         .sidebar-footer {
-            flex-shrink: 0; /* Jangan mengecil */
-            border-top: 1px solid rgba(255,255,255,0.1);
-            background: rgba(0, 0, 0, 0.2); /* Latar belakang agak gelap agar kontras */
-            padding: 10px 0;
+            flex-shrink: 0; border-top: 1px solid rgba(255,255,255,0.1);
+            background: rgba(0, 0, 0, 0.2); padding: 10px 0;
         }
 
-        /* Styling Item Menu */
         .list-group-item { background: transparent; color: #bfdbfe; border: none; padding: 0.8rem 1.5rem; font-weight: 500; transition: all 0.3s; border-left: 4px solid transparent; display: flex; align-items: center; height: 50px; }
         .list-group-item i { min-width: 30px; font-size: 1.1rem; text-align: center; }
         .list-group-item:hover { background-color: rgba(255,255,255,0.1); color: #fff; padding-left: 1.8rem; }
-        .list-group-item.active { background-color: rgba(255,255,255,0.15); color: #fff; border-left: 4px solid #60a5fa; }
+        .list-group-item.active { background-color: rgba(255,255,255,0.15); color: #fff; border-left: 4px solid #fff; }
         
         .sidebar-heading {
             font-size: 0.7rem; text-transform: uppercase; letter-spacing: 1.5px;
@@ -69,10 +63,13 @@
         .navbar { background-color: #fff; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05); padding: 0.8rem 2rem; height: 70px; }
         .container-fluid-content { padding: 2rem; }
         .card { border: none; border-radius: 15px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); }
-        .btn-primary { background-color: var(--primary-blue); border: none; }
+        
+        /* Tombol & Elemen Primary mengikuti DB */
+        .btn-primary { background-color: var(--primary-blue); border-color: var(--primary-blue); }
+        .btn-primary:hover { background-color: #1d4ed8; border-color: #1d4ed8; }
+        .text-primary { color: var(--primary-blue) !important; }
         .form-control:focus { border-color: var(--primary-blue); box-shadow: 0 0 0 0.2rem rgba(37, 99, 235, 0.25); }
 
-        /* LOGIKA COLLAPSE (MINI SIDEBAR) */
         #wrapper.toggled #sidebar-wrapper { width: var(--sidebar-mini-width); }
         #wrapper.toggled #sidebar-wrapper .sidebar-brand { justify-content: center; padding: 0; }
         #wrapper.toggled .menu-text, #wrapper.toggled .brand-text, #wrapper.toggled .sidebar-heading { display: none; }
@@ -117,6 +114,17 @@
                 </a>
                 <a href="{{ url_for('transactions') }}" class="list-group-item list-group-item-action {{ 'active' if 'transaction' in request.path else '' }}">
                     <i class="fas fa-receipt me-3"></i> <span class="menu-text">Transaksi</span>
+                </a>
+
+                <div class="sidebar-heading">Bisnis & Tools</div>
+                <a href="{{ url_for('analytics') }}" class="list-group-item list-group-item-action {{ 'active' if 'analytics' in request.path else '' }}">
+                    <i class="fas fa-chart-line me-3"></i> <span class="menu-text">Analytics & ROI</span>
+                </a>
+                <a href="{{ url_for('marketing') }}" class="list-group-item list-group-item-action {{ 'active' if 'marketing' in request.path else '' }}">
+                    <i class="fas fa-bullhorn me-3"></i> <span class="menu-text">Marketing Tool</span>
+                </a>
+                <a href="{{ url_for('design') }}" class="list-group-item list-group-item-action {{ 'active' if 'design' in request.path else '' }}">
+                    <i class="fas fa-paint-brush me-3"></i> <span class="menu-text">Desain Tema</span>
                 </a>
 
                 <div class="sidebar-heading">Promosi</div>

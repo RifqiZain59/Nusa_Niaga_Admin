@@ -1,0 +1,183 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h4 class="fw-bold text-primary">Statistik Grafik Toko</h4>
+    <button class="btn btn-outline-secondary btn-sm" onclick="window.print()">
+        <i class="fas fa-print me-2"></i>Print Laporan
+    </button>
+</div>
+
+<div class="row mb-4">
+    <div class="col-md-6 mb-2">
+        <div class="alert alert-info border-0 shadow-sm d-flex align-items-center" role="alert">
+            <i class="fas fa-info-circle fa-2x me-3 opacity-50"></i>
+            <div>
+                <small class="text-uppercase fw-bold opacity-75">Tips Strategi</small>
+                <div class="fw-bold">
+                    {% if insights and insights|length > 0 %}
+                        {{ insights[0] }}
+                    {% else %}
+                        Data penjualan belum cukup untuk analisis AI.
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-6 mb-2">
+        <div class="alert alert-primary text-white border-0 shadow-sm d-flex align-items-center" role="alert" style="background-color: #2563eb;">
+            <i class="fas fa-chart-pie fa-2x me-3 opacity-50"></i>
+            <div>
+                <small class="text-uppercase fw-bold opacity-75">Status Kampanye</small>
+                <div class="fw-bold">
+                    {% if campaigns %}
+                        {{ campaigns|length }} Kampanye Iklan Aktif
+                    {% else %}
+                        Tidak ada kampanye aktif.
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-md-8 mb-4">
+        <div class="card border-0 shadow-sm h-100">
+            <div class="card-header bg-white py-3">
+                <h6 class="fw-bold mb-0 text-dark"><i class="fas fa-chart-line me-2 text-primary"></i>Tren Omzet (7 Hari Terakhir)</h6>
+            </div>
+            <div class="card-body">
+                <div style="height: 350px; width: 100%;">
+                    <canvas id="salesChart"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-4 mb-4">
+        <div class="card border-0 shadow-sm h-100">
+            <div class="card-header bg-white py-3">
+                <h6 class="fw-bold mb-0 text-dark"><i class="fas fa-clock me-2 text-warning"></i>Jam Tersibuk</h6>
+            </div>
+            <div class="card-body">
+                <div style="height: 350px; width: 100%;">
+                    <canvas id="peakHourChart"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script id="chart-data" type="application/json">
+{
+    "dates": {{ dates | default('[]') | safe }},
+    "revenue": {{ revenue | default('[]') | safe }},
+    "peak": {{ peak_hours | default({}) | tojson | safe }},
+    "primaryColor": "#2563eb"
+}
+</script>
+
+<script>
+    document.addEventListener("DOMContentLoaded", function() {
+        
+        // --- 1. AMBIL DATA DARI JSON (ANTI CRASH) ---
+        let chartData = { dates: [], revenue: [], peak: {}, primaryColor: '#2563eb' };
+
+        try {
+            const rawData = document.getElementById('chart-data').textContent;
+            chartData = JSON.parse(rawData);
+        } catch (err) {
+            console.error("Gagal memproses data grafik:", err);
+        }
+
+        const salesDates = chartData.dates;
+        const salesRevenue = chartData.revenue;
+        const peakData = chartData.peak;
+        const themeColor = chartData.primaryColor;
+
+        // Cek apakah Chart.js berhasil di-load
+        if (typeof Chart === 'undefined') {
+            console.error("Chart.js belum terload. Cek koneksi internet.");
+            return;
+        }
+
+        // --- 2. RENDER CHART PENJUALAN ---
+        const ctxSales = document.getElementById('salesChart');
+        if (ctxSales) {
+            new Chart(ctxSales.getContext('2d'), {
+                type: 'line',
+                data: {
+                    labels: salesDates,
+                    datasets: [{
+                        label: 'Omzet (Rp)',
+                        data: salesRevenue,
+                        borderColor: themeColor,
+                        backgroundColor: themeColor + '20', // Hex transparansi
+                        borderWidth: 2,
+                        fill: true,
+                        tension: 0.3,
+                        pointRadius: 4,
+                        pointBackgroundColor: '#fff',
+                        pointBorderColor: themeColor
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: { 
+                        legend: { display: false },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    return ' Rp ' + context.raw.toLocaleString('id-ID');
+                                }
+                            }
+                        }
+                    },
+                    scales: {
+                        y: { 
+                            beginAtZero: true, 
+                            grid: { borderDash: [5, 5] },
+                            ticks: {
+                                callback: function(value) {
+                                    return value.toLocaleString('id-ID');
+                                }
+                            }
+                        },
+                        x: { grid: { display: false } }
+                    }
+                }
+            });
+        }
+
+        // --- 3. RENDER CHART JAM SIBUK ---
+        const ctxPeak = document.getElementById('peakHourChart');
+        if (ctxPeak) {
+            new Chart(ctxPeak.getContext('2d'), {
+                type: 'bar',
+                data: {
+                    labels: Object.keys(peakData),
+                    datasets: [{
+                        label: 'Transaksi',
+                        data: Object.values(peakData),
+                        backgroundColor: '#f59e0b',
+                        borderRadius: 4
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: { legend: { display: false } },
+                    scales: {
+                        y: { beginAtZero: true, ticks: { stepSize: 1 }, grid: { borderDash: [5, 5] } },
+                        x: { grid: { display: false } }
+                    }
+                }
+            });
+        }
+    });
+</script>
+{% endblock %}

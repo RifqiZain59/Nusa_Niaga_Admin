@@ -26,11 +26,12 @@
 
                 <div class="row">
                     <div class="col-md-6 mb-3">
-                        <label class="form-label text-muted small fw-bold">Harga Satuan (Rp)</label>
-                        <input type="text" id="priceDisplay" class="form-control form-control-lg" required 
+                        <label class="form-label text-muted small fw-bold">Harga Satuan</label>
+                        <input type="text" name="price" class="form-control form-control-lg rupiah-input" required 
                                value="{{ '{:,.0f}'.format(product.price).replace(',', '.') }}">
-                        <input type="hidden" name="price" id="priceReal" value="{{ product.price }}">
+                        <small class="text-muted" style="font-size: 10px;">*Format titik otomatis</small>
                     </div>
+
                     <div class="col-md-6 mb-3">
                         <label class="form-label text-muted small fw-bold">Stok</label>
                         <input type="number" name="stock" value="{{ product.stock }}" class="form-control form-control-lg" required>
@@ -66,22 +67,20 @@
 </div>
 
 <script>
-    const displayInput = document.getElementById('priceDisplay');
-    const realInput = document.getElementById('priceReal');
-
-    displayInput.addEventListener('input', function(e) {
-        // Hapus semua karakter kecuali angka
-        let rawValue = this.value.replace(/\D/g, '');
-        
-        // Simpan angka murni ke input hidden
-        realInput.value = rawValue;
-        
-        // Format tampilan dengan titik ribuan
-        if (rawValue) {
-            this.value = new Intl.NumberFormat('id-ID').format(rawValue);
-        } else {
-            this.value = '';
-        }
+    document.querySelectorAll('.rupiah-input').forEach(function(input) {
+        input.addEventListener('keyup', function(e) {
+            let value = this.value.replace(/[^,\d]/g, '').toString();
+            let split = value.split(',');
+            let sisa = split[0].length % 3;
+            let rupiah = split[0].substr(0, sisa);
+            let ribuan = split[0].substr(sisa).match(/\d{3}/gi);
+            if (ribuan) {
+                let separator = sisa ? '.' : '';
+                rupiah += separator + ribuan.join('.');
+            }
+            rupiah = split[1] != undefined ? rupiah + ',' + split[1] : rupiah;
+            this.value = rupiah;
+        });
     });
 </script>
 {% endblock %}

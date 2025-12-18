@@ -2,55 +2,69 @@
 {% block content %}
 <div class="card p-4 border-0 shadow-sm">
     <div class="d-flex justify-content-between align-items-center mb-4">
-        <div><h4 class="fw-bold text-primary mb-1">Daftar Produk</h4><p class="text-muted small mb-0">Kelola stok dan harga.</p></div>
-        <a href="{{ url_for('add') }}" class="btn btn-primary shadow-sm"><i class="fas fa-plus me-2"></i>Tambah</a>
+        <div>
+            <h4 class="fw-bold text-primary mb-1">Daftar Produk</h4>
+            <p class="text-muted small mb-0">Kelola stok dan harga produk.</p>
+        </div>
+        <a href="{{ url_for('add') }}" class="btn btn-primary shadow-sm">
+            <i class="fas fa-plus me-2"></i>Tambah Produk
+        </a>
     </div>
 
     <div class="table-responsive">
         <table class="table table-hover align-middle table-bordered small">
             <thead class="bg-light text-center">
                 <tr>
-                    <th>ID</th>
-                    <th>Foto</th>
-                    <th>Nama Produk</th>
-                    <th>Kategori</th>
-                    <th>Harga</th>
-                    <th>Stok</th>
-                    <th>Aksi</th>
+                    <th style="width: 5%;">ID</th>
+                    <th style="width: 10%;">Foto</th>
+                    <th style="width: 35%;">Nama Produk</th>
+                    <th style="width: 25%;">Harga</th>
+                    <th style="width: 10%;">Stok</th>
+                    <th style="width: 15%;">Aksi</th>
                 </tr>
             </thead>
             <tbody>
                 {% for product in products %}
                 <tr>
-                    <td class="text-center">#{{ product.id }}</td>
+                    <td class="text-center fw-bold text-secondary">#{{ product.id }}</td>
                     <td class="text-center">
                         <img src="{{ url_for('product_image', id=product.id) }}" 
                              class="rounded shadow-sm" 
                              style="width: 50px; height: 50px; object-fit: cover; border: 1px solid #dee2e6;">
                     </td>
-                    <td><span class="fw-bold text-dark">{{ product.name }}</span></td>
                     <td>
+                        <span class="fw-bold text-dark d-block">{{ product.name }}</span>
                         {% if product.category %}
-                            <span class="badge bg-info text-dark">{{ product.category.name }}</span>
-                        {% else %}<span class="text-muted small">-</span>{% endif %}
+                            <span class="badge bg-light text-secondary border mt-1">{{ product.category.name }}</span>
+                        {% endif %}
                     </td>
-                    <td class="text-end fw-bold text-primary">Rp {{ "{:,.0f}".format(product.price) }}</td>
-                    <td class="text-center">
-                        {% if product.stock < 5 %}<span class="badge bg-danger">{{ product.stock }}</span>
-                        {% else %}<span class="badge bg-success">{{ product.stock }}</span>{% endif %}
+                    <td class="text-end fw-bold text-primary fs-6">
+                        Rp {{ "{:,.0f}".format(product.price).replace(',', '.') }}
                     </td>
                     <td class="text-center">
-                        <a href="{{ url_for('edit', id=product.id) }}" class="btn btn-sm btn-outline-warning me-1">
+                        {% if product.stock < 5 %}
+                            <span class="badge bg-danger">Sisa {{ product.stock }}</span>
+                        {% else %}
+                            <span class="badge bg-success">{{ product.stock }}</span>
+                        {% endif %}
+                    </td>
+                    <td class="text-center">
+                        <a href="{{ url_for('edit', id=product.id) }}" class="btn btn-sm btn-outline-warning me-1" title="Edit">
                             <i class="fas fa-edit"></i>
                         </a>
-                        
-                        <a href="{{ url_for('delete', id=product.id) }}" class="btn btn-sm btn-outline-danger" onclick="return confirm('Hapus?')">
+                        <a href="{{ url_for('delete', id=product.id) }}" class="btn btn-sm btn-outline-danger" 
+                           onclick="return confirm('Yakin hapus?')" title="Hapus">
                             <i class="fas fa-trash-alt"></i>
                         </a>
                     </td>
                 </tr>
                 {% else %}
-                <tr><td colspan="7" class="text-center py-5">Belum ada produk.</td></tr>
+                <tr>
+                    <td colspan="6" class="text-center py-5 text-muted">
+                        <i class="fas fa-box-open fa-3x mb-3 opacity-25"></i><br>
+                        Belum ada data produk.
+                    </td>
+                </tr>
                 {% endfor %}
             </tbody>
         </table>

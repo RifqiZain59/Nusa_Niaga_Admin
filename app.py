@@ -1,24 +1,23 @@
-from flask import Flask, render_template, request, redirect, url_for, flash, send_file, jsonify, make_response
+from flask import Flask, render_template, request, redirect, url_for, flash, send_file, jsonify
 from flask_sqlalchemy import SQLAlchemy
 from flask_login import LoginManager, UserMixin, login_user, login_required, logout_user, current_user
 from werkzeug.security import generate_password_hash, check_password_hash
 from datetime import datetime
 from io import BytesIO 
+from sqlalchemy import func, extract, text
+import json
 
 app = Flask(__name__)
 app.secret_key = "rahasia_nusa_niaga_blob_version" 
 
 # ==========================================
-# 1. KONFIGURASI
+# 1. KONFIGURASI DATABASE
 # ==========================================
 app.config['SQLALCHEMY_DATABASE_URI'] = 'mysql+mysqlconnector://root:@localhost/nusa_niaga'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
-app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024  # Limit 16MB
+app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024
 
 db = SQLAlchemy(app)
-
-POINT_VALUE = 5000       
-EARN_RATE = 10000        
 
 login_manager = LoginManager()
 login_manager.init_app(app)
@@ -50,22 +49,17 @@ class Product(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     category_id = db.Column(db.Integer, db.ForeignKey('category.id'), nullable=True)
     name = db.Column(db.String(100), nullable=False)
-    price = db.Column(db.Integer, nullable=False)
+    price = db.Column(db.Integer, nullable=False) 
     stock = db.Column(db.Integer, nullable=False)
     description = db.Column(db.Text, nullable=True)
     image_data = db.Column(db.LargeBinary, nullable=True) 
     mimetype = db.Column(db.String(50), nullable=True)
 
-    # TAMBAHKAN INI: Agar ulasan dan favorit terhapus otomatis saat produk dihapus
-    # Kita tidak menghapus transaksi (Transaction) untuk menjaga riwayat keuangan
+    @property
+    def final_price(self): return self.price
+
     reviews_rel = db.relationship('Review', backref='product_parent', cascade="all, delete-orphan", lazy=True)
     favorites_rel = db.relationship('Favorite', backref='product_parent', cascade="all, delete-orphan", lazy=True)
-
-class Voucher(db.Model):
-    id = db.Column(db.Integer, primary_key=True)
-    code = db.Column(db.String(20), unique=True, nullable=False)
-    discount_amount = db.Column(db.Integer, nullable=False)
-    is_active = db.Column(db.Boolean, default=True)
 
 class Customer(db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -125,12 +119,55 @@ class Banner(db.Model):
     mimetype = db.Column(db.String(50), nullable=False)
     is_active = db.Column(db.Boolean, default=True)
 
+class DesignSetting(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    primary_color = db.Column(db.String(20), default='#2563eb')
+    font_family = db.Column(db.String(50), default='Poppins')
+    sidebar_color = db.Column(db.String(20), default='#1e3a8a')
+
+class SocialPost(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    platform = db.Column(db.String(50), nullable=False) 
+    content = db.Column(db.Text, nullable=False)
+    schedule_time = db.Column(db.DateTime, nullable=False)
+    status = db.Column(db.String(20), default='Scheduled') 
+
+class AdCampaign(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(100), nullable=False)
+    cost = db.Column(db.Integer, nullable=False)
+    revenue_generated = db.Column(db.Integer, default=0)
+    start_date = db.Column(db.Date, nullable=False)
+    end_date = db.Column(db.Date, nullable=False)
+    
+    @property
+    def roi(self):
+        if self.cost == 0: return 0
+        return ((self.revenue_generated - self.cost) / self.cost) * 100
+
+class Voucher(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    code = db.Column(db.String(20), unique=True, nullable=False) 
+    discount_amount = db.Column(db.Integer, nullable=False)      
+    is_active = db.Column(db.Boolean, default=True)
+
 with app.app_context():
     db.create_all()
 
 # ==========================================
-# 3. WEB ROUTES (ADMIN DASHBOARD)
+# 3. WEB ROUTES
 # ==========================================
+
+@app.context_processor
+def inject_theme():
+    try:
+        setting = DesignSetting.query.first()
+        if not setting:
+            setting = DesignSetting(primary_color='#2563eb', font_family='Poppins', sidebar_color='#1e3a8a')
+            db.session.add(setting); db.session.commit()
+        return dict(theme=setting)
+    except:
+        return dict(theme=None)
 
 @app.route('/login', methods=['GET', 'POST'])
 def login():
@@ -169,23 +206,47 @@ def index():
 @login_required
 def products(): return render_template('products.html', products=Product.query.all())
 
+# === RESET DATABASE ID (FITUR BARU) ===
+@app.route('/reset_products')
+@login_required
+def reset_products():
+    try:
+        Transaction.query.delete()
+        Review.query.delete()
+        Favorite.query.delete()
+        Product.query.delete()
+        db.session.commit()
+
+        db.session.execute(text("ALTER TABLE product AUTO_INCREMENT = 1"))
+        db.session.execute(text("ALTER TABLE transaction AUTO_INCREMENT = 1"))
+        db.session.commit()
+        
+        flash("Semua produk dihapus. ID di-reset ke 1.", "success")
+    except Exception as e:
+        db.session.rollback()
+        flash(f"Gagal reset: {e}", "danger")
+    
+    return redirect(url_for('products'))
+
 @app.route('/add', methods=['POST', 'GET'])
 @login_required
 def add():
     categories = Category.query.all()
     if request.method == 'POST':
-        # Penanganan Gambar
         file = request.files.get('image')
         img_data = None
         mtype = None
         if file and file.filename != '':
             img_data = file.read()
             mtype = file.mimetype
-            
+        
+        raw_price = request.form['price'].replace('.', '') 
+        price = int(raw_price) if raw_price else 0
+        
         new_prod = Product(
             name=request.form['name'], 
             category_id=request.form.get('category_id'), 
-            price=int(request.form['price']), 
+            price=price,
             stock=int(request.form['stock']), 
             description=request.form['description'],
             image_data=img_data,
@@ -203,20 +264,22 @@ def edit(id):
     p = Product.query.get_or_404(id)
     categories = Category.query.all()
     if request.method == 'POST':
-        p.name=request.form['name']
-        p.category_id=request.form.get('category_id')
-        p.price=int(request.form['price'])
-        p.stock=int(request.form['stock'])
-        p.description=request.form['description']
+        p.name = request.form['name']
+        p.category_id = request.form.get('category_id')
         
-        # Update Gambar jika ada file baru
+        raw_price = request.form['price'].replace('.', '')
+        p.price = int(raw_price) if raw_price else 0
+        
+        p.stock = int(request.form['stock'])
+        p.description = request.form['description']
+        
         file = request.files.get('image')
         if file and file.filename != '':
             p.image_data = file.read()
             p.mimetype = file.mimetype
             
         db.session.commit()
-        flash("Diupdate.", "info")
+        flash("Produk diperbarui.", "info")
         return redirect(url_for('products'))
     return render_template('edit.html', product=p, categories=categories)
 
@@ -225,28 +288,24 @@ def edit(id):
 def delete(id):
     p = Product.query.get_or_404(id)
     try:
-        # 1. Cek apakah ada transaksi. Jika ada, sebaiknya jangan hapus permanen 
-        # atau set product_id di transaksi menjadi NULL (jika kolom membolehkan).
-        has_transaction = Transaction.query.filter_by(product_id=id).first()
-        if has_transaction:
-            flash("Gagal: Produk ini tidak bisa dihapus karena memiliki riwayat transaksi.", "warning")
-            return redirect(url_for('products'))
-
-        # 2. Hapus ulasan dan favorit terkait secara manual
+        Transaction.query.filter_by(product_id=id).delete()
         Review.query.filter_by(product_id=id).delete()
         Favorite.query.filter_by(product_id=id).delete()
-
-        # 3. Hapus produk
         db.session.delete(p)
         db.session.commit()
-        flash(f"Produk '{p.name}' berhasil dihapus.", "danger")
+        
+        if Product.query.count() == 0:
+            db.session.execute(text("ALTER TABLE product AUTO_INCREMENT = 1"))
+            db.session.commit()
+            flash(f"Produk dihapus. Data habis, ID di-reset ke 1.", "warning")
+        else:
+            flash(f"Produk '{p.name}' berhasil dihapus.", "success")
+            
     except Exception as e:
         db.session.rollback()
         flash(f"Gagal hapus: {str(e)}", "warning")
-    
     return redirect(url_for('products'))
 
-# ROUTE UNTUK MENAMPILKAN GAMBAR DARI DATABASE
 @app.route('/product_image/<int:id>')
 def product_image(id):
     p = Product.query.get_or_404(id)
@@ -315,20 +374,23 @@ def add_transaction():
                 flash("Stok kurang!", "danger")
                 return redirect(url_for('add_transaction'))
             
-            gross = prod.price * qty
-            disc = 0
+            unit_price = prod.price
+            gross = unit_price * qty
+            
+            disc_voucher = 0
             code = None
             
             if ivoucher:
                 v = Voucher.query.filter_by(code=ivoucher, is_active=True).first()
                 if v:
-                    disc = v.discount_amount
+                    disc_voucher = v.discount_amount
                     code = ivoucher
-                    if disc > gross: disc = gross
+                    if disc_voucher > gross: disc_voucher = gross
+                    flash(f"Voucher {code} dipakai!", "success")
                 else:
-                    flash("Kode Voucher Salah", "warning")
+                    flash(f"Voucher '{ivoucher}' tidak valid.", "warning")
             
-            final = gross - disc
+            final = gross - disc_voucher
             cust = Customer.query.filter_by(phone=c_phone).first()
             if not cust:
                 cust = Customer(name=c_name, phone=c_phone, address=c_addr, points=0)
@@ -340,11 +402,12 @@ def add_transaction():
             
             new_trx = Transaction(
                 product_id=pid, customer_name=c_name, customer_phone=c_phone, customer_address=c_addr,
-                quantity=qty, total_price=gross, voucher_code=code, discount_voucher=disc,
+                quantity=qty, total_price=gross, 
+                voucher_code=code, discount_voucher=disc_voucher,
                 points_earned=earn, final_price=final, payment_method=pay
             )
             db.session.add(new_trx); db.session.commit()
-            flash(f"Transaksi Sukses! Poin +{earn}", "success")
+            flash(f"Transaksi Sukses! Total: Rp {final}", "success")
             return redirect(url_for('transactions'))
         except Exception as e:
             flash(f"Error: {e}", "danger")
@@ -436,8 +499,123 @@ def delete_review(id): db.session.delete(Review.query.get_or_404(id)); db.sessio
 @login_required
 def favorites(): return render_template('favorites.html', favorites=Favorite.query.order_by(Favorite.created_at.desc()).all())
 
+@app.route('/analytics')
+@login_required
+def analytics():
+    daily_sales = db.session.query(func.date(Transaction.date), func.sum(Transaction.final_price))\
+        .group_by(func.date(Transaction.date))\
+        .order_by(func.date(Transaction.date).desc()).limit(7).all()
+    
+    chart_dates = [str(d[0]) for d in daily_sales][::-1]
+    chart_revenue = [int(d[1]) for d in daily_sales][::-1]
+
+    top_products = db.session.query(Product.name, func.sum(Transaction.quantity))\
+        .join(Transaction).group_by(Product.name)\
+        .order_by(func.sum(Transaction.quantity).desc()).limit(5).all()
+
+    peak_hours = db.session.query(extract('hour', Transaction.date), func.count(Transaction.id))\
+        .group_by(extract('hour', Transaction.date))\
+        .order_by(func.count(Transaction.id).desc()).all()
+    
+    peak_hour_data = {f"{int(h[0])}:00": h[1] for h in peak_hours}
+
+    insights = []
+    if not chart_revenue:
+        insights.append("Belum ada data penjualan yang cukup.")
+    else:
+        if len(chart_revenue) > 1 and chart_revenue[-1] < chart_revenue[0]: 
+            insights.append("Tren penjualan menurun.")
+        if peak_hours and peak_hours[0][0] > 17:
+            insights.append("Pelanggan aktif malam hari.")
+    
+    campaigns = AdCampaign.query.all()
+
+    return render_template('analytics.html', 
+                           dates=json.dumps(chart_dates), 
+                           revenue=json.dumps(chart_revenue),
+                           top_products=top_products,
+                           peak_hours=peak_hour_data,
+                           insights=insights,
+                           campaigns=campaigns)
+
+# === MARKETING ROUTES (BARU: TAMBAH, EDIT, HAPUS) ===
+@app.route('/marketing', methods=['GET', 'POST'])
+@login_required
+def marketing():
+    if request.method == 'POST':
+        platform = request.form['platform']
+        content = request.form['content']
+        time_str = request.form['schedule_time'] 
+        sch_time = datetime.strptime(time_str, '%Y-%m-%dT%H:%M')
+        
+        new_post = SocialPost(platform=platform, content=content, schedule_time=sch_time)
+        db.session.add(new_post)
+        db.session.commit()
+        flash("Postingan dijadwalkan!", "success")
+        return redirect(url_for('marketing'))
+        
+    posts = SocialPost.query.order_by(SocialPost.schedule_time.asc()).all()
+    return render_template('marketing.html', posts=posts)
+
+@app.route('/edit_post/<int:id>', methods=['POST'])
+@login_required
+def edit_post(id):
+    post = SocialPost.query.get_or_404(id)
+    try:
+        post.platform = request.form['platform']
+        post.content = request.form['content']
+        time_str = request.form['schedule_time']
+        post.schedule_time = datetime.strptime(time_str, '%Y-%m-%dT%H:%M')
+        
+        db.session.commit()
+        flash("Postingan diperbarui.", "success")
+    except Exception as e:
+        db.session.rollback()
+        flash(f"Error update: {str(e)}", "danger")
+    return redirect(url_for('marketing'))
+
+@app.route('/delete_post/<int:id>')
+@login_required
+def delete_post(id):
+    post = SocialPost.query.get_or_404(id)
+    try:
+        db.session.delete(post)
+        db.session.commit()
+        flash("Postingan dihapus.", "success")
+    except Exception as e:
+        db.session.rollback()
+        flash(f"Error hapus: {str(e)}", "danger")
+    return redirect(url_for('marketing'))
+
+@app.route('/add_campaign', methods=['POST'])
+@login_required
+def add_campaign():
+    name = request.form['name']
+    cost = int(request.form['cost'])
+    rev = int(request.form['revenue'])
+    start = datetime.strptime(request.form['start_date'], '%Y-%m-%d')
+    end = datetime.strptime(request.form['end_date'], '%Y-%m-%d')
+    
+    db.session.add(AdCampaign(name=name, cost=cost, revenue_generated=rev, start_date=start, end_date=end))
+    db.session.commit()
+    flash("Kampanye iklan dicatat.", "success")
+    return redirect(url_for('analytics'))
+
+@app.route('/design', methods=['GET', 'POST'])
+@login_required
+def design():
+    setting = DesignSetting.query.first()
+    if request.method == 'POST':
+        setting.primary_color = request.form['primary_color']
+        setting.sidebar_color = request.form['sidebar_color']
+        setting.font_family = request.form['font_family']
+        db.session.commit()
+        flash("Desain tema diperbarui!", "success")
+        return redirect(url_for('design'))
+    return render_template('design.html', setting=setting)
+
 # ==========================================
-# 4. API SERVICE (MOBILE APP)
+# 5. API SERVICE (MOBILE APP)
 # ==========================================
 
 def api_response(status, message, data=None):
@@ -546,19 +724,15 @@ def api_get_favorites(customer_id):
         return api_response('success', 'OK', data)
     except Exception as e: return api_response('error', str(e))
 
-# Tambahkan ini di bagian API SERVICE (MOBILE APP) pada app.py
 @app.route('/api/products/<int:id>', methods=['GET'])
 def api_product_detail(id):
     p = Product.query.get(id)
     if not p:
         return jsonify({'status': 'error', 'message': 'Data tidak ditemukan (404)'}), 404
     
-    # Ambil customer_id dari parameter untuk cek favorit user tersebut
     customer_id = request.args.get('customer_id', type=int)
-    
     is_fav = False
     if customer_id:
-        # Cek apakah data favorit ada di tabel Favorite
         fav = Favorite.query.filter_by(customer_id=customer_id, product_id=id).first()
         is_fav = True if fav else False
 
@@ -567,7 +741,7 @@ def api_product_detail(id):
         'name': p.name,
         'price': p.price,
         'description': p.description,
-        'is_favorite': is_fav, # Kirim status ini ke Flutter
+        'is_favorite': is_fav,
         'status': 'success'
     })
 
@@ -585,20 +759,11 @@ def api_toggle_favorite():
         return api_response('success', 'Updated', {'is_favorite': is_fav})
     except Exception as e: return api_response('error', str(e))
 
-# Tambahkan di bagian 4. API SERVICE (MOBILE APP) pada app.py
-
 @app.route('/api/vouchers', methods=['GET'])
 def api_get_vouchers():
     try:
-        # Mengambil semua voucher dengan status is_active = True
         vouchers = Voucher.query.filter_by(is_active=True).all()
-        data = []
-        for v in vouchers:
-            data.append({
-                'id': v.id,
-                'code': v.code,
-                'discount_amount': v.discount_amount
-            })
+        data = [{'id': v.id, 'code': v.code, 'discount_amount': v.discount_amount} for v in vouchers]
         return api_response('success', 'Daftar voucher berhasil diambil', data)
     except Exception as e:
         return api_response('error', str(e))

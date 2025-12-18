@@ -1,0 +1,104 @@
+{% extends 'base.html' %}
+{% block content %}
+<div class="row">
+    <div class="col-md-4">
+        <div class="card p-4 border-0 shadow-sm">
+            <h5 class="fw-bold text-primary mb-3">Buat Jadwal Postingan</h5>
+            <form action="{{ url_for('marketing') }}" method="POST">
+                <div class="mb-3">
+                    <label class="form-label">Platform</label>
+                    <select name="platform" class="form-select">
+                        <option value="Instagram">Instagram</option>
+                        <option value="Facebook">Facebook</option>
+                        <option value="TikTok">TikTok</option>
+                        <option value="WhatsApp">WhatsApp Story</option>
+                    </select>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">Konten Caption</label>
+                    <textarea name="content" class="form-control" rows="4" placeholder="Tulis caption promosi..." required></textarea>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">Jadwal Tayang</label>
+                    <input type="datetime-local" name="schedule_time" class="form-control" required>
+                </div>
+                <button type="submit" class="btn btn-primary w-100">Jadwalkan</button>
+            </form>
+        </div>
+    </div>
+
+    <div class="col-md-8">
+        <div class="card p-4 border-0 shadow-sm">
+            <h5 class="fw-bold text-primary mb-3">Jadwal Postingan</h5>
+            <div class="table-responsive">
+                <table class="table table-hover align-middle border">
+                    <thead class="bg-light">
+                        <tr>
+                            <th>Platform</th>
+                            <th>Konten</th>
+                            <th>Jadwal</th>
+                            <th>Status</th>
+                            <th class="text-center" style="min-width: 160px;">Aksi</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for post in posts %}
+                        <tr>
+                            <td>
+                                {% if post.platform == 'Instagram' %} <i class="fab fa-instagram text-danger"></i>
+                                {% elif post.platform == 'Facebook' %} <i class="fab fa-facebook text-primary"></i>
+                                {% elif post.platform == 'TikTok' %} <i class="fab fa-tiktok text-dark"></i>
+                                {% elif post.platform == 'WhatsApp' %} <i class="fab fa-whatsapp text-success"></i>
+                                {% endif %}
+                                {{ post.platform }}
+                            </td>
+                            <td>{{ post.content | truncate(50) }}</td>
+                            <td>{{ post.schedule_time.strftime('%d %b %Y, %H:%M') }}</td>
+                            <td><span class="badge bg-secondary">{{ post.status }}</span></td>
+                            <td class="text-center">
+                                <div class="btn-group">
+                                    {% set encoded_content = post.content | urlencode %}
+                                    
+                                    {% if post.platform == 'WhatsApp' %}
+                                        <a href="https://wa.me/?text={{ encoded_content }}" target="_blank" class="btn btn-sm btn-outline-success"><i class="fab fa-whatsapp"></i></a>
+                                    
+                                    {% elif post.platform == 'Facebook' %}
+                                        <a href="https://www.facebook.com/sharer/sharer.php?u={{ request.url_root }}&quote={{ encoded_content }}" target="_blank" class="btn btn-sm btn-outline-primary"><i class="fab fa-facebook-f"></i></a>
+                                    
+                                    {% elif post.platform == 'Instagram' %}
+                                        <button type="button" class="btn btn-sm btn-outline-danger" data-caption="{{ post.content }}" onclick="shareToInstagram(this)"><i class="fab fa-instagram"></i></button>
+                                    
+                                    {% else %}
+                                        <button type="button" class="btn btn-sm btn-outline-secondary" data-caption="{{ post.content }}" onclick="copyOnly(this)"><i class="fas fa-copy"></i></button>
+                                    {% endif %}
+
+                                    <button type="button" class="btn btn-sm btn-outline-warning" data-bs-toggle="modal" data-bs-target="#editModal{{ post.id }}"><i class="fas fa-edit"></i></button>
+                                    <a href="{{ url_for('delete_post', id=post.id) }}" class="btn btn-sm btn-outline-danger" onclick="return confirm('Hapus?')"><i class="fas fa-trash-alt"></i></a>
+                                </div>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+function shareToInstagram(el) {
+    const text = el.getAttribute('data-caption');
+    navigator.clipboard.writeText(text).then(() => {
+        alert('Caption disalin! Silakan paste saat membuat postingan Instagram.');
+        window.open('https://www.instagram.com/', '_blank');
+    });
+}
+
+function copyOnly(el) {
+    const text = el.getAttribute('data-caption');
+    navigator.clipboard.writeText(text).then(() => {
+        alert('Caption berhasil disalin!');
+    });
+}
+</script>
+{% endblock %}

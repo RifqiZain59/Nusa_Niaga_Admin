@@ -4,12 +4,13 @@
     <div class="col-md-8">
         <div class="card p-5 border-0 shadow-sm">
             <h4 class="mb-4 fw-bold text-primary">Tambah Produk Baru</h4>
+            
             <form action="{{ url_for('add') }}" method="POST" enctype="multipart/form-data">
                 
                 <div class="row">
                     <div class="col-md-6 mb-3">
                         <label class="form-label text-muted small fw-bold">Nama Produk</label>
-                        <input type="text" name="name" class="form-control" required placeholder="Nama...">
+                        <input type="text" name="name" class="form-control" required placeholder="Nama produk...">
                     </div>
                     <div class="col-md-6 mb-3">
                         <label class="form-label text-muted small fw-bold">Kategori</label>
@@ -25,13 +26,15 @@
 
                 <div class="row">
                     <div class="col-md-6 mb-3">
-                        <label class="form-label text-muted small fw-bold">Harga Satuan (Rp)</label>
-                        <input type="text" id="priceDisplayAdd" class="form-control" required placeholder="0">
-                        <input type="hidden" name="price" id="priceRealAdd">
+                        <label class="form-label text-muted small fw-bold">Harga Satuan</label>
+                        <input type="text" name="price" class="form-control rupiah-input" required 
+                               placeholder="Contoh: 15.000" autocomplete="off">
+                        <small class="text-muted" style="font-size: 10px;">*Otomatis format titik</small>
                     </div>
+                    
                     <div class="col-md-6 mb-3">
                         <label class="form-label text-muted small fw-bold">Stok Awal</label>
-                        <input type="number" name="stock" class="form-control" required placeholder="0">
+                        <input type="number" name="stock" class="form-control" required placeholder="50">
                     </div>
                 </div>
 
@@ -42,10 +45,10 @@
 
                 <div class="mb-4">
                     <label class="form-label text-muted small fw-bold">Deskripsi</label>
-                    <textarea name="description" class="form-control" rows="2" placeholder="Ket..."></textarea>
+                    <textarea name="description" class="form-control" rows="2" placeholder="Keterangan produk..."></textarea>
                 </div>
 
-                <button type="submit" class="btn btn-primary btn-lg w-100 shadow-sm">Simpan Produk & Gambar</button>
+                <button type="submit" class="btn btn-primary btn-lg w-100 shadow-sm">Simpan Produk</button>
                 <a href="{{ url_for('products') }}" class="btn btn-light w-100 mt-2">Batal</a>
             </form>
         </div>
@@ -53,18 +56,21 @@
 </div>
 
 <script>
-    const displayAdd = document.getElementById('priceDisplayAdd');
-    const realAdd = document.getElementById('priceRealAdd');
+    document.querySelectorAll('.rupiah-input').forEach(function(input) {
+        input.addEventListener('keyup', function(e) {
+            let value = this.value.replace(/[^,\d]/g, '').toString();
+            let split = value.split(',');
+            let sisa = split[0].length % 3;
+            let rupiah = split[0].substr(0, sisa);
+            let ribuan = split[0].substr(sisa).match(/\d{3}/gi);
 
-    displayAdd.addEventListener('input', function(e) {
-        let rawValue = this.value.replace(/\D/g, '');
-        realAdd.value = rawValue;
-        
-        if (rawValue) {
-            this.value = new Intl.NumberFormat('id-ID').format(rawValue);
-        } else {
-            this.value = '';
-        }
+            if (ribuan) {
+                let separator = sisa ? '.' : '';
+                rupiah += separator + ribuan.join('.');
+            }
+            rupiah = split[1] != undefined ? rupiah + ',' + split[1] : rupiah;
+            this.value = rupiah;
+        });
     });
 </script>
 {% endblock %}
