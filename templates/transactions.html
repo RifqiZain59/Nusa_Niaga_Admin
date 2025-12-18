@@ -124,24 +124,58 @@
                 <thead class="bg-light text-muted small text-uppercase">
                     <tr>
                         <th class="ps-4">Waktu</th>
+                        <th class="text-center">Antrian</th>
                         <th>Pelanggan</th>
                         <th>Produk & Diskon</th>
-                        <th class="text-end pe-4">Total Akhir</th>
+                        <th class="text-center">Poin</th> <th class="text-end pe-4">Total Akhir</th>
                     </tr>
                 </thead>
                 <tbody id="transaction_list">
                     {% for t in transactions %}
-                    <tr class="data-row {{ 'row-discount' if t.discount_voucher > 0 else '' }}">
-                        <td class="ps-4 text-muted small">{{ t.date.strftime('%d/%m/%Y %H:%M') }}</td>
+                    <tr class="data-row {{ 'row-discount' if t.total_discount > 0 else '' }}">
+                        <td class="ps-4 text-muted small">
+                            {{ t.date.strftime('%d/%m/%Y %H:%M') }}
+                        </td>
+                        
+                        <td class="text-center">
+                            <h4 class="fw-bold text-dark mb-0">{{ t.queue_number or '-' }}</h4>
+                            <small class="text-muted">Meja: {{ t.table_number or '-' }}</small>
+                        </td>
+
                         <td class="fw-bold">{{ t.customer_name }}</td>
+                        
                         <td>
-                            <div class="fw-bold">{{ t.product.name }} <span class="badge bg-light text-dark border">x{{ t.quantity }}</span></div>
-                            {% if t.discount_voucher > 0 %}
-                            <small class="text-danger fw-bold"><i class="fas fa-tags me-1"></i>-Rp {{ "{:,.0f}".format(t.discount_voucher) }}</small>
+                            <div class="d-flex flex-column gap-1">
+                                {% for item in t.list_belanja %}
+                                    <div class="d-flex align-items-center">
+                                        <i class="fas fa-circle text-primary me-2" style="font-size: 5px;"></i>
+                                        <span class="fw-bold text-dark me-2">{{ item.name }}</span>
+                                        <span class="badge bg-light text-dark border text-xs">x{{ item.qty }}</span>
+                                    </div>
+                                {% endfor %}
+                            </div>
+
+                            {% if t.total_discount > 0 %}
+                                <div class="mt-2 pt-2 border-top border-light">
+                                    <small class="text-danger fw-bold">
+                                        <i class="fas fa-tags me-1"></i>Hemat Voucher: -Rp {{ "{:,.0f}".format(t.total_discount) }}
+                                    </small>
+                                </div>
                             {% endif %}
                         </td>
-                        <td class="text-end pe-4 fw-bold {{ 'text-danger' if t.discount_voucher > 0 else 'text-success' }} value-cell" data-value="{{ t.final_price }}">
-                            Rp {{ "{:,.0f}".format(t.final_price) }}
+
+                        <td class="text-center">
+                            {% if t.total_points > 0 %}
+                                <span class="badge bg-warning text-dark border border-warning shadow-sm rounded-pill">
+                                    +{{ t.total_points }} Poin
+                                </span>
+                            {% else %}
+                                <span class="text-muted small">-</span>
+                            {% endif %}
+                        </td>
+
+                        <td class="text-end pe-4 fw-bold {{ 'text-danger' if t.total_discount > 0 else 'text-success' }} value-cell" data-value="{{ t.total_final }}">
+                            Rp {{ "{:,.0f}".format(t.total_final) }}
                         </td>
                     </tr>
                     {% endfor %}
@@ -160,12 +194,8 @@
         });
 
         const formattedTotal = "Rp " + new Intl.NumberFormat('id-ID').format(total);
-        
-        // Isi tampilan di layar
         document.getElementById('total_omzet_display').innerText = formattedTotal;
         document.getElementById('total_count_display').innerText = rows.length;
-
-        // Isi tampilan untuk mode cetak (PDF)
         document.getElementById('print_total_omzet').innerText = formattedTotal;
         document.getElementById('print_total_count').innerText = rows.length;
     }

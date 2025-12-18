@@ -1,69 +1,391 @@
 {% extends 'base.html' %}
 {% block content %}
-<div class="row justify-content-center">
-    <div class="col-md-9">
-        <div class="card p-5 border-0 shadow-sm">
-            <h4 class="mb-4 fw-bold text-primary"><i class="fas fa-cash-register me-2"></i>Point Of Sales</h4>
-            <form action="{{ url_for('add_transaction') }}" method="POST">
-                
-                <div class="row">
-                    <div class="col-md-4 mb-3">
-                        <label class="form-label text-muted small fw-bold">Pelanggan</label>
-                        <input type="text" name="customer_name" class="form-control" required placeholder="Nama...">
-                    </div>
-                    <div class="col-md-4 mb-3">
-                        <label class="form-label text-muted small fw-bold">No. HP (ID Poin)</label>
-                        <input type="text" name="customer_phone" class="form-control" required placeholder="08..." title="Wajib diisi">
-                    </div>
-                    <div class="col-md-4 mb-3">
-                         <label class="form-label text-muted small fw-bold">Pembayaran</label>
-                        <select name="payment_method" class="form-select" required>
-                            <option value="Tunai">Tunai</option><option value="QRIS">QRIS</option><option value="Transfer">Transfer</option>
-                        </select>
-                    </div>
-                </div>
-                <div class="mb-3"><label class="form-label text-muted small fw-bold">Alamat</label><textarea name="customer_address" class="form-control" rows="1"></textarea></div>
-                <hr>
 
-                <div class="mb-3">
-                    <label class="form-label text-muted small fw-bold">Produk</label>
-                    <select name="product_id" id="product_select" class="form-select form-select-lg" required onchange="hitungTotal()">
-                        <option value="" data-price="0" selected disabled>-- Pilih Barang --</option>
+<style>
+    /* --- 1. STYLING FILTER KAPSUL (PILL) --- */
+    .filter-scroll-container {
+        overflow-x: auto;
+        white-space: nowrap;
+        padding-bottom: 5px;
+        -ms-overflow-style: none;  /* IE and Edge */
+        scrollbar-width: none;  /* Firefox */
+    }
+    .filter-scroll-container::-webkit-scrollbar { display: none; }
+
+    .btn-filter-pill {
+        display: inline-flex;
+        align-items: center;
+        background-color: #fff;
+        color: #64748b;
+        border: 1px solid #e2e8f0;
+        border-radius: 50rem !important; /* Bentuk Kapsul */
+        padding: 8px 24px;
+        font-weight: 500;
+        font-size: 0.9rem;
+        transition: all 0.2s ease;
+        margin-right: 8px;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.02);
+    }
+
+    .btn-filter-pill:hover {
+        background-color: #f8fafc;
+        transform: translateY(-1px);
+        box-shadow: 0 4px 6px rgba(0,0,0,0.05);
+    }
+
+    /* Style saat tombol Aktif */
+    .btn-filter-pill.active {
+        background-color: #2563eb; /* Warna Primary */
+        color: #fff;
+        border-color: #2563eb;
+        box-shadow: 0 4px 10px rgba(37, 99, 235, 0.3);
+    }
+
+    /* --- 2. STYLING KARTU PRODUK --- */
+    .product-card {
+        transition: all 0.2s;
+        cursor: pointer;
+        border: 1px solid #f1f5f9;
+        background: #fff;
+        border-radius: 12px;
+        overflow: hidden;
+    }
+    
+    .product-card:hover {
+        transform: translateY(-3px);
+        box-shadow: 0 10px 15px -3px rgba(0,0,0,0.1);
+        border-color: #e2e8f0;
+    }
+
+    .product-card:active { transform: scale(0.98); }
+
+    .product-img-box {
+        height: 130px;
+        background: #f8f9fa;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        overflow: hidden;
+    }
+
+    .product-img-box img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+    }
+
+    .catalog-scroll-area {
+        max-height: 75vh;
+        overflow-y: auto;
+        padding-right: 5px;
+    }
+    .catalog-scroll-area::-webkit-scrollbar { width: 4px; }
+    .catalog-scroll-area::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
+
+    /* --- 3. STYLING KERANJANG --- */
+    .cart-item { border-bottom: 1px dashed #e2e8f0; padding: 10px 0; }
+    .cart-item:last-child { border-bottom: none; }
+    .cart-qty-btn { width: 24px; height: 24px; padding: 0; line-height: 0; border-radius: 50%; }
+</style>
+
+<div class="row g-4">
+    <div class="col-lg-7">
+        
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <div>
+                <h4 class="fw-bold text-dark mb-0">Katalog Menu</h4>
+                <p class="text-muted small mb-0">Klik produk untuk masuk keranjang</p>
+            </div>
+            <div class="input-group w-50 shadow-sm rounded-pill overflow-hidden">
+                <span class="input-group-text bg-white border-0 ps-3"><i class="fas fa-search text-muted"></i></span>
+                <input type="text" id="searchProduct" class="form-control border-0 ps-1" placeholder="Cari menu..." onkeyup="filterProducts()">
+            </div>
+        </div>
+
+        <div class="filter-scroll-container d-flex align-items-center mb-4">
+            <button class="btn btn-filter-pill active" onclick="filterCategory('all', this)">
+                Semua
+            </button>
+            
+            {% for c in categories %}
+                <button class="btn btn-filter-pill" onclick="filterCategory('{{ c.id }}', this)">
+                    {{ c.name }}
+                </button>
+            {% endfor %}
+        </div>
+
+        <div class="card border-0 shadow-sm">
+            <div class="card-body p-3">
+                <div class="catalog-scroll-area">
+                    <div class="row g-3" id="productGrid">
                         {% for p in products %}
-                            <option value="{{ p.id }}" data-price="{{ p.price }}">{{ p.name }} (Stok: {{ p.stock }})</option>
+                        <div class="col-md-4 col-6 product-item" 
+                             data-name="{{ p.name.lower() }}" 
+                             data-category="{{ p.category_id if p.category_id else 'uncategorized' }}">
+                             
+                            <div class="card h-100 product-card border-0 shadow-sm" 
+                                 data-id="{{ p.id }}"
+                                 data-name="{{ p.name }}"
+                                 data-price="{{ p.price }}"
+                                 data-stock="{{ p.stock }}"
+                                 onclick="selectProduct(this)">
+                                
+                                <div class="product-img-box">
+                                    <img src="{{ url_for('product_image', id=p.id) }}" alt="{{ p.name }}" onerror="this.src='https://via.placeholder.com/150?text=No+Image'">
+                                </div>
+                                
+                                <div class="card-body p-3 text-center">
+                                    <h6 class="fw-bold text-dark mb-1 text-truncate small">{{ p.name }}</h6>
+                                    <div class="text-primary fw-bold mb-2">Rp {{ "{:,.0f}".format(p.price).replace(',', '.') }}</div>
+                                    
+                                    {% if p.stock <= 0 %}
+                                        <div class="badge bg-danger rounded-pill px-3">Habis</div>
+                                    {% else %}
+                                        <div class="badge bg-light text-muted border rounded-pill px-2 fw-normal" style="font-size: 0.65rem;">
+                                            {{ p.category.name if p.category else 'Umum' }}
+                                        </div>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
                         {% endfor %}
-                    </select>
+                    </div>
+                    
+                    <div id="noProductMsg" class="text-center py-5 d-none">
+                        <i class="fas fa-search fa-3x text-muted mb-3 opacity-25"></i>
+                        <p class="text-muted">Tidak ada produk ditemukan.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-lg-5">
+        <div class="card border-0 shadow-sm h-100">
+            <div class="card-header bg-white py-3 border-bottom d-flex justify-content-between align-items-center">
+                <h5 class="fw-bold text-dark mb-0"><i class="fas fa-shopping-cart me-2 text-primary"></i>Keranjang</h5>
+                <span class="badge bg-primary rounded-pill" id="cartCount">0 Item</span>
+            </div>
+            
+            <div class="card-body p-0 d-flex flex-column" style="height: calc(100vh - 200px);">
+                
+                <div class="p-3 bg-light border-bottom">
+                    <form id="transactionForm" action="{{ url_for('add_transaction') }}" method="POST">
+                        <input type="hidden" name="cart_data" id="cart_data_input">
+                        
+                        <div class="row g-2 mb-2">
+                            <div class="col-6">
+                                <input type="text" name="customer_name" class="form-control form-control-sm" required placeholder="Nama Pelanggan">
+                            </div>
+                            <div class="col-6">
+                                <input type="text" name="customer_phone" class="form-control form-control-sm" required placeholder="No HP / WA">
+                            </div>
+                        </div>
+                        <div class="row g-2">
+                            <div class="col-6">
+                                <select name="payment_method" class="form-select form-select-sm fw-bold" required>
+                                    <option value="Tunai">Tunai</option>
+                                    <option value="QRIS">QRIS</option>
+                                    <option value="Transfer">Transfer</option>
+                                </select>
+                            </div>
+                            <div class="col-6">
+                                <input type="text" name="table_number" class="form-control form-control-sm text-center fw-bold" placeholder="No. Meja" required>
+                            </div>
+                        </div>
+                        <div class="d-none">
+                            <textarea name="customer_address" class="form-control"></textarea>
+                        </div>
+                    </form>
                 </div>
 
-                <div class="row align-items-end">
-                    <div class="col-md-4 mb-3">
-                        <label class="form-label text-muted small fw-bold">Jumlah</label>
-                        <input type="number" name="quantity" id="quantity_input" class="form-control form-control-lg" min="1" value="1" required oninput="hitungTotal()">
-                    </div>
-                    <div class="col-md-4 mb-3">
-                        <label class="form-label text-muted small fw-bold">Voucher (Opsional)</label>
-                        <input type="text" name="voucher_code" class="form-control form-control-lg text-uppercase" placeholder="KODE...">
-                    </div>
-                    <div class="col-md-4 mb-3">
-                         <label class="form-label text-muted small fw-bold">Total Harga</label>
-                         <input type="text" id="total_display" class="form-control form-control-lg bg-light fw-bold text-dark" readonly value="Rp 0">
+                <div class="flex-grow-1 overflow-auto p-3" id="cartContainer">
+                    <div class="text-center py-5 text-muted opacity-50">
+                        <i class="fas fa-basket-shopping fa-3x mb-3"></i>
+                        <p>Keranjang masih kosong</p>
                     </div>
                 </div>
 
-                <div class="alert alert-success bg-success bg-opacity-10 border-0 small mt-2">
-                    <i class="fas fa-star me-2"></i> Poin otomatis ditambahkan setelah transaksi.
+                <div class="p-3 bg-white border-top shadow-sm">
+                    <div class="mb-3">
+                         <input type="text" form="transactionForm" name="voucher_code" class="form-control form-control-sm text-uppercase text-center border-dashed" placeholder="Punya Kode Voucher?">
+                    </div>
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <span class="text-muted small fw-bold text-uppercase">Total Tagihan</span>
+                        <h3 class="fw-bold text-primary mb-0" id="grandTotal">Rp 0</h3>
+                    </div>
+                    <button type="button" onclick="submitTransaction()" class="btn btn-primary w-100 py-3 fw-bold shadow-sm rounded-3">
+                        <i class="fas fa-print me-2"></i> PROSES PEMBAYARAN
+                    </button>
                 </div>
-                <button type="submit" class="btn btn-primary btn-lg w-100 shadow-sm mt-3"><i class="fas fa-save me-2"></i> Proses Transaksi</button>
-            </form>
+            </div>
         </div>
     </div>
 </div>
+
 <script>
-    function hitungTotal() {
-        var p = document.getElementById('product_select');
-        var price = p.options[p.selectedIndex].getAttribute('data-price') || 0;
-        var qty = document.getElementById('quantity_input').value || 0;
-        document.getElementById('total_display').value = "Rp " + new Intl.NumberFormat('id-ID').format(price * qty);
+    // --- 1. LOGIKA KERANJANG BELANJA (CART SYSTEM) ---
+    let cart = []; 
+    let activeCategory = 'all';
+
+    // FUNGSI UTAMA: Menerima elemen HTML, mengambil data, lalu diproses
+    function selectProduct(element) {
+        let id = element.getAttribute('data-id');
+        let name = element.getAttribute('data-name');
+        let price = parseInt(element.getAttribute('data-price'));
+        let stock = parseInt(element.getAttribute('data-stock'));
+        
+        addToCart(id, name, price, stock);
+    }
+
+    // Tambah Produk ke Cart
+    function addToCart(id, name, price, stock) {
+        if(stock <= 0) { 
+            alert("Maaf, stok produk ini habis!"); 
+            return; 
+        }
+
+        let existingItem = cart.find(item => item.id === id);
+
+        if (existingItem) {
+            if (existingItem.qty < stock) {
+                existingItem.qty++;
+            } else {
+                alert("Stok maksimal tercapai (" + stock + ")");
+            }
+        } else {
+            cart.push({ id: id, name: name, price: price, qty: 1, stock: stock });
+        }
+        renderCart();
+    }
+
+    // Update Jumlah Item
+    function updateCartQty(id, change) {
+        let item = cart.find(i => i.id === id);
+        if (!item) return;
+
+        let newQty = item.qty + change;
+        
+        if (newQty > item.stock) {
+            alert("Stok tidak mencukupi! Sisa: " + item.stock);
+            return;
+        }
+
+        if (newQty <= 0) {
+            removeFromCart(id);
+        } else {
+            item.qty = newQty;
+            renderCart();
+        }
+    }
+
+    // Hapus Item
+    function removeFromCart(id) {
+        cart = cart.filter(item => item.id !== id);
+        renderCart();
+    }
+
+    // Render Tampilan Cart HTML
+    function renderCart() {
+        const container = document.getElementById('cartContainer');
+        const countBadge = document.getElementById('cartCount');
+        const totalDisplay = document.getElementById('grandTotal');
+
+        if (cart.length === 0) {
+            container.innerHTML = `
+                <div class="text-center py-5 text-muted opacity-50">
+                    <i class="fas fa-basket-shopping fa-3x mb-3"></i>
+                    <p>Keranjang masih kosong</p>
+                </div>`;
+            countBadge.innerText = "0 Item";
+            totalDisplay.innerText = "Rp 0";
+            return;
+        }
+
+        let html = '';
+        let grandTotal = 0;
+        let totalQty = 0;
+
+        cart.forEach(item => {
+            let subtotal = item.price * item.qty;
+            grandTotal += subtotal;
+            totalQty += item.qty;
+
+            html += `
+                <div class="cart-item d-flex justify-content-between align-items-center">
+                    <div style="width: 50%;">
+                        <div class="fw-bold text-dark small text-truncate" title="${item.name}">${item.name}</div>
+                        <div class="text-muted" style="font-size: 0.75rem;">
+                            Rp ${new Intl.NumberFormat('id-ID').format(item.price)} x ${item.qty}
+                        </div>
+                    </div>
+                    <div class="d-flex align-items-center">
+                        <button class="btn btn-sm btn-outline-secondary cart-qty-btn" onclick="updateCartQty('${item.id}', -1)">-</button>
+                        <span class="mx-2 fw-bold small" style="min-width: 20px; text-align: center;">${item.qty}</span>
+                        <button class="btn btn-sm btn-outline-primary cart-qty-btn" onclick="updateCartQty('${item.id}', 1)">+</button>
+                    </div>
+                    <div class="text-end ms-2" style="width: 25%;">
+                        <div class="fw-bold text-primary small">Rp ${new Intl.NumberFormat('id-ID').format(subtotal)}</div>
+                        <div class="text-danger" style="font-size: 0.7rem; cursor: pointer;" onclick="removeFromCart('${item.id}')">Hapus</div>
+                    </div>
+                </div>
+            `;
+        });
+
+        container.innerHTML = html;
+        countBadge.innerText = totalQty + " Item";
+        totalDisplay.innerText = "Rp " + new Intl.NumberFormat('id-ID').format(grandTotal);
+    }
+
+    // Submit Transaksi
+    function submitTransaction() {
+        if (cart.length === 0) {
+            alert("Keranjang masih kosong! Pilih produk dulu.");
+            return;
+        }
+        
+        let form = document.getElementById('transactionForm');
+        if (!form.checkValidity()) {
+            form.reportValidity();
+            return;
+        }
+
+        document.getElementById('cart_data_input').value = JSON.stringify(cart);
+        form.submit();
+    }
+
+    // --- 2. LOGIKA FILTER KATEGORI & SEARCH ---
+    function filterCategory(catId, btn) {
+        document.querySelectorAll('.btn-filter-pill').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        activeCategory = catId;
+        filterProducts();
+    }
+
+    function filterProducts() {
+        let keyword = document.getElementById('searchProduct').value.toLowerCase();
+        let items = document.querySelectorAll('.product-item');
+        let visibleCount = 0;
+
+        items.forEach(item => {
+            let name = item.getAttribute('data-name');
+            let category = item.getAttribute('data-category');
+            
+            let matchName = name.includes(keyword);
+            let matchCat = (activeCategory === 'all') || (category === activeCategory);
+
+            if (matchName && matchCat) {
+                item.classList.remove('d-none');
+                visibleCount++;
+            } else {
+                item.classList.add('d-none');
+            }
+        });
+
+        let msg = document.getElementById('noProductMsg');
+        if (visibleCount === 0) msg.classList.remove('d-none');
+        else msg.classList.add('d-none');
     }
 </script>
+
 {% endblock %}

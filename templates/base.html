@@ -10,7 +10,7 @@
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     
     <style>
-        /* CSS VARIABLE DINAMIS DARI DATABASE */
+        /* CSS VARIABLE DINAMIS (Sekarang Statis dari app.py) */
         :root { 
             --primary-blue: {{ theme.primary_color }}; 
             --dark-blue: {{ theme.sidebar_color }}; 
@@ -27,7 +27,7 @@
         #sidebar-wrapper {
             height: 100vh;
             width: var(--sidebar-width); margin-left: 0;
-            background: var(--dark-blue); /* Menggunakan warna dari DB */
+            background: var(--dark-blue);
             color: #fff; position: fixed; z-index: 1000; transition: all 0.3s ease;
             box-shadow: 4px 0 15px rgba(37, 99, 235, 0.1); 
             display: flex; flex-direction: column; justify-content: space-between;
@@ -122,9 +122,6 @@
                 </a>
                 <a href="{{ url_for('marketing') }}" class="list-group-item list-group-item-action {{ 'active' if 'marketing' in request.path else '' }}">
                     <i class="fas fa-bullhorn me-3"></i> <span class="menu-text">Marketing Tool</span>
-                </a>
-                <a href="{{ url_for('design') }}" class="list-group-item list-group-item-action {{ 'active' if 'design' in request.path else '' }}">
-                    <i class="fas fa-paint-brush me-3"></i> <span class="menu-text">Desain Tema</span>
                 </a>
 
                 <div class="sidebar-heading">Promosi</div>

@@ -92,6 +92,11 @@ class Transaction(db.Model):
     points_earned = db.Column(db.Integer, default=0)
     final_price = db.Column(db.Integer, nullable=False)
     payment_method = db.Column(db.String(50), nullable=False)
+    
+    # KOLOM MEJA DAN ANTRIAN (DIPERTAHANKAN)
+    table_number = db.Column(db.String(10), nullable=True)
+    queue_number = db.Column(db.String(10), nullable=True)
+    
     date = db.Column(db.DateTime, default=datetime.now)
 
 class Review(db.Model):
@@ -119,11 +124,8 @@ class Banner(db.Model):
     mimetype = db.Column(db.String(50), nullable=False)
     is_active = db.Column(db.Boolean, default=True)
 
-class DesignSetting(db.Model):
-    id = db.Column(db.Integer, primary_key=True)
-    primary_color = db.Column(db.String(20), default='#2563eb')
-    font_family = db.Column(db.String(50), default='Poppins')
-    sidebar_color = db.Column(db.String(20), default='#1e3a8a')
+# [DIHAPUS] Model DesignSetting
+# [DIHAPUS] Model AdCampaign
 
 class SocialPost(db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -132,24 +134,14 @@ class SocialPost(db.Model):
     schedule_time = db.Column(db.DateTime, nullable=False)
     status = db.Column(db.String(20), default='Scheduled') 
 
-class AdCampaign(db.Model):
-    id = db.Column(db.Integer, primary_key=True)
-    name = db.Column(db.String(100), nullable=False)
-    cost = db.Column(db.Integer, nullable=False)
-    revenue_generated = db.Column(db.Integer, default=0)
-    start_date = db.Column(db.Date, nullable=False)
-    end_date = db.Column(db.Date, nullable=False)
-    
-    @property
-    def roi(self):
-        if self.cost == 0: return 0
-        return ((self.revenue_generated - self.cost) / self.cost) * 100
-
 class Voucher(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     code = db.Column(db.String(20), unique=True, nullable=False) 
     discount_amount = db.Column(db.Integer, nullable=False)      
     is_active = db.Column(db.Boolean, default=True)
+
+# KONSTANTA POINT RATE
+EARN_RATE = 5000 
 
 with app.app_context():
     db.create_all()
@@ -160,14 +152,14 @@ with app.app_context():
 
 @app.context_processor
 def inject_theme():
-    try:
-        setting = DesignSetting.query.first()
-        if not setting:
-            setting = DesignSetting(primary_color='#2563eb', font_family='Poppins', sidebar_color='#1e3a8a')
-            db.session.add(setting); db.session.commit()
-        return dict(theme=setting)
-    except:
-        return dict(theme=None)
+    # Mengembalikan tema STATIS (Hardcoded) karena tabel DB dihapus
+    # Ini mencegah error di base.html yang memanggil {{ theme.primary_color }}
+    theme = {
+        'primary_color': '#2563eb', 
+        'sidebar_color': '#1e3a8a', 
+        'font_family': 'Poppins'
+    }
+    return dict(theme=theme)
 
 @app.route('/login', methods=['GET', 'POST'])
 def login():
@@ -206,7 +198,7 @@ def index():
 @login_required
 def products(): return render_template('products.html', products=Product.query.all())
 
-# === RESET DATABASE ID (FITUR BARU) ===
+# === RESET DATABASE ID ===
 @app.route('/reset_products')
 @login_required
 def reset_products():
@@ -352,67 +344,214 @@ def delete_discount(id): db.session.delete(Voucher.query.get_or_404(id)); db.ses
 
 @app.route('/transactions')
 @login_required
-def transactions(): 
-    return render_template('transactions.html', transactions=Transaction.query.order_by(Transaction.date.desc()).all())
+def transactions():
+    # 1. Ambil data mentah dari database
+    raw_transactions = Transaction.query.order_by(Transaction.date.desc()).all()
+    
+    # 2. Logika Pengelompokan (Grouping)
+    grouped_data = {}
+    
+    for t in raw_transactions:
+        # Gunakan getattr untuk menghindari error jika kolom queue/table belum ada
+        queue_num = getattr(t, 'queue_number', '-')
+        table_num = getattr(t, 'table_number', '-')
+        
+        # KUNCI GROUPING: Waktu + No HP + Antrian
+        group_key = (t.date, t.customer_phone, queue_num)
+        
+        if group_key not in grouped_data:
+            grouped_data[group_key] = {
+                'date': t.date,
+                'queue_number': queue_num,
+                'table_number': table_num,
+                'customer_name': t.customer_name,
+                'list_belanja': [],
+                'total_discount': 0,
+                'total_final': 0,
+                'total_points': 0  # <--- [BARU] Inisialisasi Poin
+            }
+        
+        # Masukkan item ke dalam grup list_belanja
+        grouped_data[group_key]['list_belanja'].append({
+            'name': t.product.name if t.product else 'Produk Terhapus',
+            'qty': t.quantity
+        })
+        
+        # Akumulasi total
+        grouped_data[group_key]['total_discount'] += (t.discount_voucher or 0)
+        grouped_data[group_key]['total_final'] += t.final_price
+        grouped_data[group_key]['total_points'] += t.points_earned  # <--- [BARU] Jumlahkan Poin
+
+    # 3. Ubah dictionary ke list
+    transactions_list = list(grouped_data.values())
+    
+    # Urutkan berdasarkan tanggal terbaru
+    transactions_list.sort(key=lambda x: x['date'], reverse=True)
+
+    return render_template('transactions.html', transactions=transactions_list)
+
+@app.route('/change_password', methods=['POST'])
+@login_required
+def change_password():
+    old_pass = request.form['old_password']
+    new_pass = request.form['new_password']
+    confirm_pass = request.form['confirm_password']
+
+    # 1. Cek apakah password lama benar
+    if not current_user.check_password(old_pass):
+        flash("Gagal ganti password: Password lama salah.", "danger")
+        return redirect(url_for('profile'))
+
+    # 2. Cek apakah password baru dan konfirmasi cocok
+    if new_pass != confirm_pass:
+        flash("Gagal ganti password: Konfirmasi password tidak cocok.", "danger")
+        return redirect(url_for('profile'))
+
+    # 3. Simpan password baru
+    try:
+        current_user.set_password(new_pass)
+        db.session.commit()
+        flash("Password berhasil diubah!", "success")
+    except Exception as e:
+        db.session.rollback()
+        flash(f"Terjadi kesalahan: {e}", "danger")
+    
+    return redirect(url_for('profile'))
 
 @app.route('/add_transaction', methods=['GET', 'POST'])
 @login_required
 def add_transaction():
     products = Product.query.all()
+    categories = Category.query.all()
+    
     if request.method == 'POST':
         try:
-            pid = request.form['product_id']
-            qty = int(request.form['quantity'])
+            # AMBIL DATA UMUM
             c_name = request.form['customer_name']
             c_phone = request.form['customer_phone']
             c_addr = request.form['customer_address']
             pay = request.form['payment_method']
+            table_num = request.form.get('table_number', '-') 
             ivoucher = request.form.get('voucher_code', '').strip().upper()
             
-            prod = Product.query.get(pid)
-            if prod.stock < qty: 
-                flash("Stok kurang!", "danger")
+            # AMBIL DATA KERANJANG (JSON STRING)
+            cart_json = request.form.get('cart_data')
+            if not cart_json:
+                flash("Keranjang kosong!", "danger")
                 return redirect(url_for('add_transaction'))
             
-            unit_price = prod.price
-            gross = unit_price * qty
+            cart_items = json.loads(cart_json) # Parsing JSON ke List Python
+
+            # 1. CEK STOK & HITUNG TOTAL KOTOR
+            total_gross = 0
+            product_map = {} # Simpan objek produk biar ga query ulang
             
-            disc_voucher = 0
+            for item in cart_items:
+                pid = int(item['id'])
+                qty = int(item['qty'])
+                prod = Product.query.get(pid)
+                
+                if not prod:
+                    flash(f"Produk ID {pid} tidak ditemukan.", "danger")
+                    return redirect(url_for('add_transaction'))
+                
+                if prod.stock < qty:
+                    flash(f"Stok {prod.name} kurang! Sisa: {prod.stock}", "danger")
+                    return redirect(url_for('add_transaction'))
+                
+                product_map[pid] = prod
+                total_gross += prod.price * qty
+
+            # 2. CEK VOUCHER (Berlaku untuk Total Transaksi)
+            disc_voucher_total = 0
             code = None
-            
             if ivoucher:
                 v = Voucher.query.filter_by(code=ivoucher, is_active=True).first()
                 if v:
-                    disc_voucher = v.discount_amount
+                    disc_voucher_total = v.discount_amount
                     code = ivoucher
-                    if disc_voucher > gross: disc_voucher = gross
-                    flash(f"Voucher {code} dipakai!", "success")
+                    # Diskon tidak boleh melebihi total belanja
+                    if disc_voucher_total > total_gross: 
+                        disc_voucher_total = total_gross
+                    flash(f"Voucher {code} dipakai! Hemat Rp {disc_voucher_total}", "success")
                 else:
                     flash(f"Voucher '{ivoucher}' tidak valid.", "warning")
-            
-            final = gross - disc_voucher
+
+            # 3. PROSES PELANGGAN & POIN
+            final_total_transaksi = total_gross - disc_voucher_total
             cust = Customer.query.filter_by(phone=c_phone).first()
             if not cust:
                 cust = Customer(name=c_name, phone=c_phone, address=c_addr, points=0)
                 db.session.add(cust)
             
-            earn = int(final / EARN_RATE)
-            cust.points += earn
-            prod.stock -= qty
+            total_earn = int(final_total_transaksi / EARN_RATE)
+            cust.points += total_earn
+
+            # 4. GENERATE NOMOR ANTRIAN (Satu antrian untuk semua item)
+            today_str = datetime.now().strftime('%Y-%m-%d')
+            last_trx = Transaction.query.filter(
+                func.date(Transaction.date) == today_str
+            ).order_by(Transaction.id.desc()).first()
+
+            new_queue = "001"
+            if last_trx and last_trx.queue_number:
+                try:
+                    last_num = int(last_trx.queue_number)
+                    new_queue = str(last_num + 1).zfill(3)
+                except:
+                    new_queue = "001"
+
+            # 5. SIMPAN TRANSAKSI PER ITEM
+            # Kita perlu membagi diskon voucher secara proporsional ke setiap item
+            # agar laporan per item tetap valid.
             
-            new_trx = Transaction(
-                product_id=pid, customer_name=c_name, customer_phone=c_phone, customer_address=c_addr,
-                quantity=qty, total_price=gross, 
-                voucher_code=code, discount_voucher=disc_voucher,
-                points_earned=earn, final_price=final, payment_method=pay
-            )
-            db.session.add(new_trx); db.session.commit()
-            flash(f"Transaksi Sukses! Total: Rp {final}", "success")
+            remaining_disc = disc_voucher_total
+            
+            for index, item in enumerate(cart_items):
+                pid = int(item['id'])
+                qty = int(item['qty'])
+                prod = product_map[pid]
+                
+                item_gross = prod.price * qty
+                
+                # Hitung proporsi diskon untuk item ini
+                if total_gross > 0:
+                    # Jika ini item terakhir, ambil sisa diskon (untuk menghindari selisih pembulatan)
+                    if index == len(cart_items) - 1:
+                        item_disc = remaining_disc
+                    else:
+                        item_disc = int((item_gross / total_gross) * disc_voucher_total)
+                        remaining_disc -= item_disc
+                else:
+                    item_disc = 0
+
+                item_final = item_gross - item_disc
+                
+                # Kurangi Stok
+                prod.stock -= qty
+                
+                # Simpan ke DB
+                new_trx = Transaction(
+                    product_id=pid, customer_name=c_name, customer_phone=c_phone, customer_address=c_addr,
+                    quantity=qty, total_price=item_gross, 
+                    voucher_code=code if item_disc > 0 else None, 
+                    discount_voucher=item_disc,
+                    points_earned=int(item_final / EARN_RATE), # Poin per item (estimasi)
+                    final_price=item_final, payment_method=pay,
+                    table_number=table_num, queue_number=new_queue 
+                )
+                db.session.add(new_trx)
+
+            db.session.commit()
+            flash(f"Transaksi Berhasil! Antrian: {new_queue}, Total: Rp {final_total_transaksi:,}", "success")
             return redirect(url_for('transactions'))
+
         except Exception as e:
+            db.session.rollback()
             flash(f"Error: {e}", "danger")
             return redirect(url_for('add_transaction'))
-    return render_template('add_transaction.html', products=products)
+            
+    return render_template('add_transaction.html', products=products, categories=categories)
 
 @app.route('/banners')
 @login_required
@@ -528,7 +667,8 @@ def analytics():
         if peak_hours and peak_hours[0][0] > 17:
             insights.append("Pelanggan aktif malam hari.")
     
-    campaigns = AdCampaign.query.all()
+    # [DIHAPUS] Query Kampanye Iklan
+    campaigns = [] 
 
     return render_template('analytics.html', 
                            dates=json.dumps(chart_dates), 
@@ -538,7 +678,6 @@ def analytics():
                            insights=insights,
                            campaigns=campaigns)
 
-# === MARKETING ROUTES (BARU: TAMBAH, EDIT, HAPUS) ===
 @app.route('/marketing', methods=['GET', 'POST'])
 @login_required
 def marketing():
@@ -587,32 +726,16 @@ def delete_post(id):
         flash(f"Error hapus: {str(e)}", "danger")
     return redirect(url_for('marketing'))
 
-@app.route('/add_campaign', methods=['POST'])
-@login_required
-def add_campaign():
-    name = request.form['name']
-    cost = int(request.form['cost'])
-    rev = int(request.form['revenue'])
-    start = datetime.strptime(request.form['start_date'], '%Y-%m-%d')
-    end = datetime.strptime(request.form['end_date'], '%Y-%m-%d')
-    
-    db.session.add(AdCampaign(name=name, cost=cost, revenue_generated=rev, start_date=start, end_date=end))
-    db.session.commit()
-    flash("Kampanye iklan dicatat.", "success")
-    return redirect(url_for('analytics'))
+# [DIHAPUS] Route /add_campaign
 
+# [DIUBAH] Route Design menjadi Redirect (Nonaktif)
 @app.route('/design', methods=['GET', 'POST'])
 @login_required
 def design():
-    setting = DesignSetting.query.first()
-    if request.method == 'POST':
-        setting.primary_color = request.form['primary_color']
-        setting.sidebar_color = request.form['sidebar_color']
-        setting.font_family = request.form['font_family']
-        db.session.commit()
-        flash("Desain tema diperbarui!", "success")
-        return redirect(url_for('design'))
-    return render_template('design.html', setting=setting)
+    # Route ini dipertahankan hanya agar url_for('design') di base.html tidak error
+    # Namun fungsinya dimatikan dan akan redirect ke dashboard
+    flash("Fitur Desain Tema telah dinonaktifkan (Database dihapus).", "warning")
+    return redirect(url_for('index'))
 
 # ==========================================
 # 5. API SERVICE (MOBILE APP)
@@ -692,6 +815,7 @@ def api_checkout():
                 remaining_discount -= curr_disc
             final = gross - curr_disc; earn = int(final / EARN_RATE)
             p.stock -= qty
+            
             db.session.add(Transaction(
                 product_id=p.id, customer_name=cust.name, customer_phone=cust.phone, customer_address=cust.address,
                 quantity=qty, total_price=gross, voucher_code=valid_voucher if curr_disc > 0 else None,
