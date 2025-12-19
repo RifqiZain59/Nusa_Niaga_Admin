@@ -891,6 +891,60 @@ def api_get_vouchers():
         return api_response('success', 'Daftar voucher berhasil diambil', data)
     except Exception as e:
         return api_response('error', str(e))
+    
+@app.route('/api/catalog', methods=['GET'])
+def api_catalog():
+    try:
+        # Ambil parameter dari URL
+        # Contoh penggunaan: /api/catalog?search=kopi&category_id=2
+        search_query = request.args.get('search')
+        category_id = request.args.get('category_id')
+
+        # Mulai query dasar dari tabel Product
+        query = Product.query
+
+        # 1. Filter berdasarkan Kategori (jika ada parameter category_id)
+        if category_id:
+            query = query.filter_by(category_id=category_id)
+
+        # 2. Filter berdasarkan Nama Produk (jika ada parameter search)
+        if search_query:
+            # Menggunakan ilike untuk pencarian case-insensitive (atau like tergantung DB)
+            query = query.filter(Product.name.like(f"%{search_query}%"))
+
+        # Eksekusi query
+        products = query.all()
+
+        # Format data JSON
+        data = []
+        for p in products:
+            data.append({
+                'id': p.id,
+                'name': p.name,
+                'category': p.category.name if p.category else 'Umum',
+                'category_id': p.category_id,
+                'price': p.price,
+                'stock': p.stock,
+                'description': p.description,
+                # Mengirimkan URL gambar lengkap
+                'image_url': url_for('product_image', id=p.id, _external=True) 
+            })
+
+        return api_response('success', 'Katalog produk berhasil diambil', data)
+
+    except Exception as e:
+        return api_response('error', str(e))
+
+@app.route('/api/categories', methods=['GET'])
+def api_categories():
+    try:
+        # Ambil semua data dari tabel Category
+        categories = Category.query.all()
+        # Format ke JSON
+        data = [{'id': c.id, 'name': c.name} for c in categories]
+        return api_response('success', 'Data kategori berhasil', data)
+    except Exception as e:
+        return api_response('error', str(e))
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5000, debug=True)
