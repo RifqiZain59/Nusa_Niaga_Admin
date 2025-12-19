@@ -7,8 +7,25 @@ from io import BytesIO
 from sqlalchemy import func, extract, text
 import json
 
+# --- TAMBAHAN IMPORT FIREBASE ---
+import firebase_admin
+from firebase_admin import credentials, auth
+
 app = Flask(__name__)
 app.secret_key = "rahasia_nusa_niaga_blob_version" 
+
+# ==========================================
+# 0. INISIALISASI FIREBASE
+# ==========================================
+# Cek agar tidak error jika file json belum ada atau app reload
+if not firebase_admin._apps:
+    try:
+        # Ganti nama file ini sesuai dengan file yang Anda unduh dari Firebase Console
+        cred = credentials.Certificate("serviceAccountKey.json")
+        firebase_admin.initialize_app(cred)
+        print("✅ Firebase Admin berhasil diinisialisasi.")
+    except Exception as e:
+        print(f"⚠️ Peringatan: Gagal inisialisasi Firebase. Pastikan 'serviceAccountKey.json' ada. Error: {e}")
 
 # ==========================================
 # 1. KONFIGURASI DATABASE
@@ -93,7 +110,6 @@ class Transaction(db.Model):
     final_price = db.Column(db.Integer, nullable=False)
     payment_method = db.Column(db.String(50), nullable=False)
     
-    # KOLOM MEJA DAN ANTRIAN (DIPERTAHANKAN)
     table_number = db.Column(db.String(10), nullable=True)
     queue_number = db.Column(db.String(10), nullable=True)
     
@@ -124,9 +140,6 @@ class Banner(db.Model):
     mimetype = db.Column(db.String(50), nullable=False)
     is_active = db.Column(db.Boolean, default=True)
 
-# [DIHAPUS] Model DesignSetting
-# [DIHAPUS] Model AdCampaign
-
 class SocialPost(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     platform = db.Column(db.String(50), nullable=False) 
@@ -147,13 +160,11 @@ with app.app_context():
     db.create_all()
 
 # ==========================================
-# 3. WEB ROUTES
+# 3. WEB ROUTES (ADMIN PANEL)
 # ==========================================
 
 @app.context_processor
 def inject_theme():
-    # Mengembalikan tema STATIS (Hardcoded) karena tabel DB dihapus
-    # Ini mencegah error di base.html yang memanggil {{ theme.primary_color }}
     theme = {
         'primary_color': '#2563eb', 
         'sidebar_color': '#1e3a8a', 
@@ -198,7 +209,6 @@ def index():
 @login_required
 def products(): return render_template('products.html', products=Product.query.all())
 
-# === RESET DATABASE ID ===
 @app.route('/reset_products')
 @login_required
 def reset_products():
@@ -345,18 +355,12 @@ def delete_discount(id): db.session.delete(Voucher.query.get_or_404(id)); db.ses
 @app.route('/transactions')
 @login_required
 def transactions():
-    # 1. Ambil data mentah dari database
     raw_transactions = Transaction.query.order_by(Transaction.date.desc()).all()
-    
-    # 2. Logika Pengelompokan (Grouping)
     grouped_data = {}
     
     for t in raw_transactions:
-        # Gunakan getattr untuk menghindari error jika kolom queue/table belum ada
         queue_num = getattr(t, 'queue_number', '-')
         table_num = getattr(t, 'table_number', '-')
-        
-        # KUNCI GROUPING: Waktu + No HP + Antrian
         group_key = (t.date, t.customer_phone, queue_num)
         
         if group_key not in grouped_data:
@@ -368,24 +372,18 @@ def transactions():
                 'list_belanja': [],
                 'total_discount': 0,
                 'total_final': 0,
-                'total_points': 0  # <--- [BARU] Inisialisasi Poin
+                'total_points': 0
             }
         
-        # Masukkan item ke dalam grup list_belanja
         grouped_data[group_key]['list_belanja'].append({
             'name': t.product.name if t.product else 'Produk Terhapus',
             'qty': t.quantity
         })
-        
-        # Akumulasi total
         grouped_data[group_key]['total_discount'] += (t.discount_voucher or 0)
         grouped_data[group_key]['total_final'] += t.final_price
-        grouped_data[group_key]['total_points'] += t.points_earned  # <--- [BARU] Jumlahkan Poin
+        grouped_data[group_key]['total_points'] += t.points_earned
 
-    # 3. Ubah dictionary ke list
     transactions_list = list(grouped_data.values())
-    
-    # Urutkan berdasarkan tanggal terbaru
     transactions_list.sort(key=lambda x: x['date'], reverse=True)
 
     return render_template('transactions.html', transactions=transactions_list)
@@ -397,17 +395,14 @@ def change_password():
     new_pass = request.form['new_password']
     confirm_pass = request.form['confirm_password']
 
-    # 1. Cek apakah password lama benar
     if not current_user.check_password(old_pass):
         flash("Gagal ganti password: Password lama salah.", "danger")
         return redirect(url_for('profile'))
 
-    # 2. Cek apakah password baru dan konfirmasi cocok
     if new_pass != confirm_pass:
         flash("Gagal ganti password: Konfirmasi password tidak cocok.", "danger")
         return redirect(url_for('profile'))
 
-    # 3. Simpan password baru
     try:
         current_user.set_password(new_pass)
         db.session.commit()
@@ -426,7 +421,6 @@ def add_transaction():
     
     if request.method == 'POST':
         try:
-            # AMBIL DATA UMUM
             c_name = request.form['customer_name']
             c_phone = request.form['customer_phone']
             c_addr = request.form['customer_address']
@@ -434,17 +428,14 @@ def add_transaction():
             table_num = request.form.get('table_number', '-') 
             ivoucher = request.form.get('voucher_code', '').strip().upper()
             
-            # AMBIL DATA KERANJANG (JSON STRING)
             cart_json = request.form.get('cart_data')
             if not cart_json:
                 flash("Keranjang kosong!", "danger")
                 return redirect(url_for('add_transaction'))
             
-            cart_items = json.loads(cart_json) # Parsing JSON ke List Python
-
-            # 1. CEK STOK & HITUNG TOTAL KOTOR
+            cart_items = json.loads(cart_json) 
             total_gross = 0
-            product_map = {} # Simpan objek produk biar ga query ulang
+            product_map = {}
             
             for item in cart_items:
                 pid = int(item['id'])
@@ -462,7 +453,6 @@ def add_transaction():
                 product_map[pid] = prod
                 total_gross += prod.price * qty
 
-            # 2. CEK VOUCHER (Berlaku untuk Total Transaksi)
             disc_voucher_total = 0
             code = None
             if ivoucher:
@@ -470,14 +460,12 @@ def add_transaction():
                 if v:
                     disc_voucher_total = v.discount_amount
                     code = ivoucher
-                    # Diskon tidak boleh melebihi total belanja
                     if disc_voucher_total > total_gross: 
                         disc_voucher_total = total_gross
                     flash(f"Voucher {code} dipakai! Hemat Rp {disc_voucher_total}", "success")
                 else:
                     flash(f"Voucher '{ivoucher}' tidak valid.", "warning")
 
-            # 3. PROSES PELANGGAN & POIN
             final_total_transaksi = total_gross - disc_voucher_total
             cust = Customer.query.filter_by(phone=c_phone).first()
             if not cust:
@@ -487,7 +475,6 @@ def add_transaction():
             total_earn = int(final_total_transaksi / EARN_RATE)
             cust.points += total_earn
 
-            # 4. GENERATE NOMOR ANTRIAN (Satu antrian untuk semua item)
             today_str = datetime.now().strftime('%Y-%m-%d')
             last_trx = Transaction.query.filter(
                 func.date(Transaction.date) == today_str
@@ -501,10 +488,6 @@ def add_transaction():
                 except:
                     new_queue = "001"
 
-            # 5. SIMPAN TRANSAKSI PER ITEM
-            # Kita perlu membagi diskon voucher secara proporsional ke setiap item
-            # agar laporan per item tetap valid.
-            
             remaining_disc = disc_voucher_total
             
             for index, item in enumerate(cart_items):
@@ -514,9 +497,7 @@ def add_transaction():
                 
                 item_gross = prod.price * qty
                 
-                # Hitung proporsi diskon untuk item ini
                 if total_gross > 0:
-                    # Jika ini item terakhir, ambil sisa diskon (untuk menghindari selisih pembulatan)
                     if index == len(cart_items) - 1:
                         item_disc = remaining_disc
                     else:
@@ -526,17 +507,14 @@ def add_transaction():
                     item_disc = 0
 
                 item_final = item_gross - item_disc
-                
-                # Kurangi Stok
                 prod.stock -= qty
                 
-                # Simpan ke DB
                 new_trx = Transaction(
                     product_id=pid, customer_name=c_name, customer_phone=c_phone, customer_address=c_addr,
                     quantity=qty, total_price=item_gross, 
                     voucher_code=code if item_disc > 0 else None, 
                     discount_voucher=item_disc,
-                    points_earned=int(item_final / EARN_RATE), # Poin per item (estimasi)
+                    points_earned=int(item_final / EARN_RATE),
                     final_price=item_final, payment_method=pay,
                     table_number=table_num, queue_number=new_queue 
                 )
@@ -667,7 +645,6 @@ def analytics():
         if peak_hours and peak_hours[0][0] > 17:
             insights.append("Pelanggan aktif malam hari.")
     
-    # [DIHAPUS] Query Kampanye Iklan
     campaigns = [] 
 
     return render_template('analytics.html', 
@@ -726,49 +703,18 @@ def delete_post(id):
         flash(f"Error hapus: {str(e)}", "danger")
     return redirect(url_for('marketing'))
 
-# [DIHAPUS] Route /add_campaign
-
-# [DIUBAH] Route Design menjadi Redirect (Nonaktif)
 @app.route('/design', methods=['GET', 'POST'])
 @login_required
 def design():
-    # Route ini dipertahankan hanya agar url_for('design') di base.html tidak error
-    # Namun fungsinya dimatikan dan akan redirect ke dashboard
     flash("Fitur Desain Tema telah dinonaktifkan (Database dihapus).", "warning")
     return redirect(url_for('index'))
 
 # ==========================================
-# 5. API SERVICE (MOBILE APP)
+# 4. API SERVICE (MOBILE APP - UMUM)
 # ==========================================
 
 def api_response(status, message, data=None):
     return jsonify({'status': status, 'message': message, 'data': data})
-
-@app.route('/api/register', methods=['POST'])
-def api_register():
-    try:
-        data = request.get_json(silent=True)
-        if not data: return api_response('error', 'Data JSON tidak valid')
-        name = data.get('name'); phone = data.get('phone'); password = data.get('password')
-        if not name or not phone or not password: return api_response('error', 'Data tidak lengkap')
-        if Customer.query.filter_by(phone=phone).first(): return api_response('error', 'Nomor HP sudah terdaftar')
-        new_cust = Customer(name=name, phone=phone, password=generate_password_hash(password), points=0)
-        db.session.add(new_cust); db.session.commit()
-        return api_response('success', 'Registrasi berhasil', {'id': new_cust.id})
-    except Exception as e: db.session.rollback(); return api_response('error', f'Error: {str(e)}')
-
-@app.route('/api/login', methods=['POST'])
-def api_login():
-    try:
-        data = request.get_json(silent=True)
-        phone = data.get('phone'); password = data.get('password')
-        cust = Customer.query.filter_by(phone=phone).first()
-        if cust and cust.password and check_password_hash(cust.password, password):
-            return api_response('success', 'Login berhasil', {
-                'id': cust.id, 'name': cust.name, 'phone': cust.phone, 'points': cust.points, 'address': cust.address, 'email': cust.email
-            })
-        return api_response('error', 'Nomor HP atau Password salah')
-    except Exception as e: return api_response('error', str(e))
 
 @app.route('/api/products', methods=['GET'])
 def api_products():
@@ -895,27 +841,14 @@ def api_get_vouchers():
 @app.route('/api/catalog', methods=['GET'])
 def api_catalog():
     try:
-        # Ambil parameter dari URL
-        # Contoh penggunaan: /api/catalog?search=kopi&category_id=2
         search_query = request.args.get('search')
         category_id = request.args.get('category_id')
-
-        # Mulai query dasar dari tabel Product
         query = Product.query
-
-        # 1. Filter berdasarkan Kategori (jika ada parameter category_id)
         if category_id:
             query = query.filter_by(category_id=category_id)
-
-        # 2. Filter berdasarkan Nama Produk (jika ada parameter search)
         if search_query:
-            # Menggunakan ilike untuk pencarian case-insensitive (atau like tergantung DB)
             query = query.filter(Product.name.like(f"%{search_query}%"))
-
-        # Eksekusi query
         products = query.all()
-
-        # Format data JSON
         data = []
         for p in products:
             data.append({
@@ -926,25 +859,151 @@ def api_catalog():
                 'price': p.price,
                 'stock': p.stock,
                 'description': p.description,
-                # Mengirimkan URL gambar lengkap
                 'image_url': url_for('product_image', id=p.id, _external=True) 
             })
-
         return api_response('success', 'Katalog produk berhasil diambil', data)
-
     except Exception as e:
         return api_response('error', str(e))
 
 @app.route('/api/categories', methods=['GET'])
 def api_categories():
     try:
-        # Ambil semua data dari tabel Category
         categories = Category.query.all()
-        # Format ke JSON
         data = [{'id': c.id, 'name': c.name} for c in categories]
         return api_response('success', 'Data kategori berhasil', data)
     except Exception as e:
         return api_response('error', str(e))
+
+# ==========================================
+# 5. KHUSUS PENGGUNA (LOGIN & REGISTER APP)
+# ==========================================
+
+def format_nomor_hp(nomor):
+    if nomor.startswith('0'):
+        return '+62' + nomor[1:]
+    if nomor.startswith('62'):
+        return '+' + nomor
+    return nomor
+
+@app.route('/api/registerpengguna', methods=['POST'])
+def registerpengguna():
+    """
+    Fungsi khusus untuk Mendaftar Pengguna Baru.
+    Data disimpan ke MySQL DAN Firebase Authentication.
+    """
+    try:
+        # 1. Ambil data dari aplikasi
+        data = request.get_json(silent=True)
+        if not data: 
+            return jsonify({'status': 'error', 'message': 'Format JSON salah'})
+
+        nama = data.get('name')
+        hp = data.get('phone')
+        password = data.get('password')
+        email = data.get('email')  # Opsional
+
+        # Validasi Input
+        if not nama or not hp or not password:
+            return jsonify({'status': 'error', 'message': 'Nama, No HP, dan Password wajib diisi'})
+
+        # 2. Cek apakah nomor HP sudah ada di MySQL
+        cek_user = Customer.query.filter_by(phone=hp).first()
+        if cek_user:
+            return jsonify({'status': 'error', 'message': 'Nomor HP sudah terdaftar di database toko'})
+
+        # 3. Simpan ke MySQL (Database Utama)
+        password_hash = generate_password_hash(password)
+        new_customer = Customer(name=nama, phone=hp, email=email, password=password_hash, points=0)
+        
+        db.session.add(new_customer)
+        db.session.commit() # Commit dulu agar dapat ID
+
+        # 4. Simpan ke Firebase Authentication (Sinkronisasi)
+        firebase_uid = None
+        status_firebase = "Belum terhubung ke Firebase"
+        
+        try:
+            hp_firebase = format_nomor_hp(hp)
+            
+            # Membuat user di Firebase dengan UID yang sama dengan ID MySQL
+            user_firebase = auth.create_user(
+                uid=str(new_customer.id), 
+                phone_number=hp_firebase,
+                display_name=nama,
+                password=password,
+                email=email if email else None
+            )
+            firebase_uid = user_firebase.uid
+            status_firebase = "Sukses sinkron ke Firebase"
+
+        except Exception as fb_error:
+            # Jika gagal di Firebase (misal password < 6 digit), catat errornya
+            status_firebase = f"Gagal sinkron Firebase: {str(fb_error)}"
+
+        # 5. Berikan respon sukses
+        return jsonify({
+            'status': 'success',
+            'message': f'Registrasi Berhasil. {status_firebase}',
+            'data': {
+                'id': new_customer.id,
+                'firebase_uid': firebase_uid,
+                'name': new_customer.name,
+                'phone': new_customer.phone
+            }
+        })
+
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'status': 'error', 'message': f'Server Error: {str(e)}'})
+
+
+@app.route('/api/loginpengguna', methods=['POST'])
+def loginpengguna():
+    """
+    Fungsi khusus untuk Login Pengguna.
+    Mengecek database MySQL dan memberikan token akses.
+    """
+    try:
+        data = request.get_json(silent=True)
+        hp = data.get('phone')
+        password = data.get('password')
+
+        if not hp or not password:
+            return jsonify({'status': 'error', 'message': 'No HP dan Password harus diisi'})
+
+        # 1. Cari pengguna di MySQL
+        user = Customer.query.filter_by(phone=hp).first()
+
+        # 2. Cek Password
+        if user and user.password and check_password_hash(user.password, password):
+            
+            # 3. (Opsional) Buat Token Firebase Custom
+            # Ini berguna agar di Android user bisa login otomatis ke Firebase
+            firebase_token = None
+            try:
+                custom_token = auth.create_custom_token(str(user.id))
+                firebase_token = custom_token.decode('utf-8')
+            except Exception:
+                pass 
+
+            return jsonify({
+                'status': 'success',
+                'message': 'Login Berhasil',
+                'data': {
+                    'user_id': user.id,
+                    'name': user.name,
+                    'phone': user.phone,
+                    'email': user.email,
+                    'points': user.points,
+                    'firebase_token': firebase_token
+                }
+            })
+        
+        else:
+            return jsonify({'status': 'error', 'message': 'Nomor HP atau Password salah'})
+
+    except Exception as e:
+        return jsonify({'status': 'error', 'message': f'Server Error: {str(e)}'})
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5000, debug=True)
