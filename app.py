@@ -900,16 +900,18 @@ def registerpengguna():
         nama = data.get('name')
         hp = data.get('phone')
         password = data.get('password')
-        email = data.get('email')  # Opsional
+        email = data.get('email')  # Email sekarang menjadi PENTING
 
         # Validasi Input
-        if not nama or not hp or not password:
-            return jsonify({'status': 'error', 'message': 'Nama, No HP, dan Password wajib diisi'})
+        if not nama or not hp or not password or not email:
+            return jsonify({'status': 'error', 'message': 'Nama, No HP, Email, dan Password wajib diisi'})
 
-        # 2. Cek apakah nomor HP sudah ada di MySQL
-        cek_user = Customer.query.filter_by(phone=hp).first()
-        if cek_user:
-            return jsonify({'status': 'error', 'message': 'Nomor HP sudah terdaftar di database toko'})
+        # 2. Cek apakah Email atau Nomor HP sudah ada
+        if Customer.query.filter_by(email=email).first():
+            return jsonify({'status': 'error', 'message': 'Email sudah terdaftar. Silakan gunakan email lain.'})
+        
+        if Customer.query.filter_by(phone=hp).first():
+            return jsonify({'status': 'error', 'message': 'Nomor HP sudah terdaftar.'})
 
         # 3. Simpan ke MySQL (Database Utama)
         password_hash = generate_password_hash(password)
@@ -925,19 +927,20 @@ def registerpengguna():
         try:
             hp_firebase = format_nomor_hp(hp)
             
-            # Membuat user di Firebase dengan UID yang sama dengan ID MySQL
+            # Membuat user di Firebase
             user_firebase = auth.create_user(
                 uid=str(new_customer.id), 
                 phone_number=hp_firebase,
                 display_name=nama,
                 password=password,
-                email=email if email else None
+                email=email 
             )
             firebase_uid = user_firebase.uid
             status_firebase = "Sukses sinkron ke Firebase"
 
         except Exception as fb_error:
-            # Jika gagal di Firebase (misal password < 6 digit), catat errornya
+            # Jika gagal di Firebase, log error tapi biarkan register MySQL sukses
+            print(f"Firebase Error: {fb_error}")
             status_firebase = f"Gagal sinkron Firebase: {str(fb_error)}"
 
         # 5. Berikan respon sukses
@@ -948,7 +951,7 @@ def registerpengguna():
                 'id': new_customer.id,
                 'firebase_uid': firebase_uid,
                 'name': new_customer.name,
-                'phone': new_customer.phone
+                'email': new_customer.email
             }
         })
 
@@ -960,47 +963,52 @@ def registerpengguna():
 @app.route('/api/loginpengguna', methods=['POST'])
 def loginpengguna():
     """
-    Fungsi khusus untuk Login Pengguna.
-    Mengecek database MySQL dan memberikan token akses.
+    Fungsi khusus untuk Login Pengguna MENGGUNAKAN EMAIL.
     """
     try:
         data = request.get_json(silent=True)
-        hp = data.get('phone')
+        
+        # --- PERUBAHAN UTAMA DI SINI ---
+        # Mengambil 'email' dari request, bukan 'phone'
+        email = data.get('email') 
         password = data.get('password')
 
-        if not hp or not password:
-            return jsonify({'status': 'error', 'message': 'No HP dan Password harus diisi'})
+        if not email or not password:
+            return jsonify({'status': 'error', 'message': 'Email dan Password harus diisi'})
 
-        # 1. Cari pengguna di MySQL
-        user = Customer.query.filter_by(phone=hp).first()
+        # 1. Cari pengguna di MySQL berdasarkan EMAIL
+        user = Customer.query.filter_by(email=email).first()
 
         # 2. Cek Password
-        if user and user.password and check_password_hash(user.password, password):
-            
-            # 3. (Opsional) Buat Token Firebase Custom
-            # Ini berguna agar di Android user bisa login otomatis ke Firebase
-            firebase_token = None
-            try:
-                custom_token = auth.create_custom_token(str(user.id))
-                firebase_token = custom_token.decode('utf-8')
-            except Exception:
-                pass 
+        if user:
+            if user.password and check_password_hash(user.password, password):
+                # 3. (Opsional) Buat Token Firebase Custom
+                firebase_token = None
+                try:
+                    custom_token = auth.create_custom_token(str(user.id))
+                    firebase_token = custom_token.decode('utf-8')
+                except Exception:
+                    pass 
 
-            return jsonify({
-                'status': 'success',
-                'message': 'Login Berhasil',
-                'data': {
-                    'user_id': user.id,
-                    'name': user.name,
-                    'phone': user.phone,
-                    'email': user.email,
-                    'points': user.points,
-                    'firebase_token': firebase_token
-                }
-            })
+                return jsonify({
+                    'status': 'success',
+                    'message': 'Login Berhasil',
+                    'data': {
+                        'user_id': user.id,
+                        'name': user.name,
+                        'phone': user.phone,
+                        'email': user.email,
+                        'points': user.points,
+                        'firebase_token': firebase_token
+                    }
+                })
+            else:
+                # Password salah
+                return jsonify({'status': 'error', 'message': 'Password salah'})
         
         else:
-            return jsonify({'status': 'error', 'message': 'Nomor HP atau Password salah'})
+            # Email tidak ditemukan
+            return jsonify({'status': 'error', 'message': 'Email tidak terdaftar'})
 
     except Exception as e:
         return jsonify({'status': 'error', 'message': f'Server Error: {str(e)}'})
