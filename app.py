@@ -1,195 +1,236 @@
-from flask import Flask, render_template, request, redirect, url_for, flash, send_file, jsonify
-from flask_sqlalchemy import SQLAlchemy
+from flask import Flask, render_template, request, redirect, url_for, flash, send_file, jsonify, session
+# Hapus komponen MySQL/SQLAlchemy
 from flask_login import LoginManager, UserMixin, login_user, login_required, logout_user, current_user
 from werkzeug.security import generate_password_hash, check_password_hash
 from datetime import datetime
-from io import BytesIO 
-from sqlalchemy import func, extract, text
+from io import BytesIO
 import json
+import base64
+import time
+import random
 
-# --- TAMBAHAN IMPORT FIREBASE ---
+# --- FIREBASE IMPORTS ---
 import firebase_admin
-from firebase_admin import credentials, auth
+from firebase_admin import credentials, auth, firestore
 
 app = Flask(__name__)
-app.secret_key = "rahasia_nusa_niaga_blob_version" 
+app.secret_key = "rahasia_nusa_niaga_no_uuid"
 
 # ==========================================
-# 0. INISIALISASI FIREBASE
+# 0. INISIALISASI FIREBASE & FIRESTORE
 # ==========================================
-# Cek agar tidak error jika file json belum ada atau app reload
+# Pastikan file 'serviceAccountKey.json' ada di folder yang sama
 if not firebase_admin._apps:
     try:
-        # Ganti nama file ini sesuai dengan file yang Anda unduh dari Firebase Console
         cred = credentials.Certificate("serviceAccountKey.json")
         firebase_admin.initialize_app(cred)
-        print("✅ Firebase Admin berhasil diinisialisasi.")
+        print("✅ Firebase Admin & Firestore berhasil diinisialisasi.")
     except Exception as e:
-        print(f"⚠️ Peringatan: Gagal inisialisasi Firebase. Pastikan 'serviceAccountKey.json' ada. Error: {e}")
+        print(f"⚠️ Gagal inisialisasi Firebase: {e}")
 
-# ==========================================
-# 1. KONFIGURASI DATABASE
-# ==========================================
-app.config['SQLALCHEMY_DATABASE_URI'] = 'mysql+mysqlconnector://root:@localhost/nusa_niaga'
-app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+db = firestore.client()
 app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024
 
-db = SQLAlchemy(app)
+# ==========================================
+# 1. GENERATOR ID ANGKA (PENGGANTI UUID)
+# ==========================================
+def generate_id():
+    """
+    Menghasilkan ID string angka unik berbasis waktu.
+    Format: Timestamp detik (10 digit) + 3 digit acak.
+    Contoh hasil: '1705221234567'
+    """
+    timestamp = int(time.time())
+    random_part = random.randint(100, 999)
+    return f"{timestamp}{random_part}"
 
+# ==========================================
+# 2. HELPER CLASSES
+# ==========================================
 login_manager = LoginManager()
 login_manager.init_app(app)
 login_manager.login_view = 'login'
 
 @login_manager.user_loader
-def load_user(user_id): return User.query.get(int(user_id))
+def load_user(user_id):
+    doc = db.collection('users').document(str(user_id)).get()
+    if doc.exists:
+        return User(doc.id, doc.to_dict())
+    return None
 
-# ==========================================
-# 2. MODEL DATABASE
-# ==========================================
+class FirestoreModel:
+    def __init__(self, id, data):
+        self.id = id
+        self._data = data if data else {}
 
-class User(UserMixin, db.Model):
-    id = db.Column(db.Integer, primary_key=True)
-    username = db.Column(db.String(50), unique=True, nullable=False)
-    password_hash = db.Column(db.String(255), nullable=False)
-    full_name = db.Column(db.String(100), nullable=True)
-    email = db.Column(db.String(120), nullable=True)
-    address = db.Column(db.Text, nullable=True)
-    def set_password(self, password): self.password_hash = generate_password_hash(password)
-    def check_password(self, password): return check_password_hash(self.password_hash, password)
+    def __getattr__(self, name):
+        return self._data.get(name)
 
-class Category(db.Model):
-    id = db.Column(db.Integer, primary_key=True)
-    name = db.Column(db.String(100), nullable=False)
-    products = db.relationship('Product', backref='category', lazy=True)
+class User(UserMixin, FirestoreModel):
+    def check_password(self, password):
+        return check_password_hash(self._data.get('password_hash', ''), password)
+    
+    def set_password(self, password):
+        self._data['password_hash'] = generate_password_hash(password)
 
-class Product(db.Model):
-    id = db.Column(db.Integer, primary_key=True)
-    category_id = db.Column(db.Integer, db.ForeignKey('category.id'), nullable=True)
-    name = db.Column(db.String(100), nullable=False)
-    price = db.Column(db.Integer, nullable=False) 
-    stock = db.Column(db.Integer, nullable=False)
-    description = db.Column(db.Text, nullable=True)
-    image_data = db.Column(db.LargeBinary, nullable=True) 
-    mimetype = db.Column(db.String(50), nullable=True)
+class Category(FirestoreModel): pass
+
+class Product(FirestoreModel):
+    @property
+    def category(self):
+        cat_id = self._data.get('category_id')
+        if cat_id:
+            doc = db.collection('categories').document(str(cat_id)).get()
+            if doc.exists: return Category(doc.id, doc.to_dict())
+        return None
 
     @property
-    def final_price(self): return self.price
+    def price(self): return int(self._data.get('price', 0))
 
-    reviews_rel = db.relationship('Review', backref='product_parent', cascade="all, delete-orphan", lazy=True)
-    favorites_rel = db.relationship('Favorite', backref='product_parent', cascade="all, delete-orphan", lazy=True)
+    @property
+    def stock(self): return int(self._data.get('stock', 0))
 
-class Customer(db.Model):
-    id = db.Column(db.Integer, primary_key=True)
-    name = db.Column(db.String(100), nullable=False)
-    phone = db.Column(db.String(20), unique=True, nullable=False)
-    email = db.Column(db.String(120), nullable=True)
-    password = db.Column(db.String(255), nullable=True) 
-    points = db.Column(db.Integer, default=0) 
-    address = db.Column(db.Text, nullable=True)
-    redemptions = db.relationship('PointRedemption', backref='customer', lazy=True)
+class Customer(FirestoreModel):
+    @property
+    def points(self): return int(self._data.get('points', 0))
 
-class PointRedemption(db.Model):
-    id = db.Column(db.Integer, primary_key=True)
-    customer_id = db.Column(db.Integer, db.ForeignKey('customer.id'), nullable=False)
-    points_spent = db.Column(db.Integer, nullable=False)
-    description = db.Column(db.String(200), nullable=False)
-    date = db.Column(db.DateTime, default=datetime.now)
-
-class Transaction(db.Model):
-    id = db.Column(db.Integer, primary_key=True)
-    product_id = db.Column(db.Integer, db.ForeignKey('product.id'), nullable=False)
-    product = db.relationship('Product', backref='transactions')
-    customer_name = db.Column(db.String(100), nullable=False)
-    customer_phone = db.Column(db.String(20), nullable=True)
-    customer_address = db.Column(db.Text, nullable=True)
-    quantity = db.Column(db.Integer, nullable=False)
-    total_price = db.Column(db.Integer, nullable=False)
-    voucher_code = db.Column(db.String(20), nullable=True)
-    discount_voucher = db.Column(db.Integer, default=0)
-    points_earned = db.Column(db.Integer, default=0)
-    final_price = db.Column(db.Integer, nullable=False)
-    payment_method = db.Column(db.String(50), nullable=False)
+class Transaction(FirestoreModel):
+    @property
+    def product(self):
+        prod_id = self._data.get('product_id')
+        if prod_id:
+            doc = db.collection('products').document(str(prod_id)).get()
+            if doc.exists: return Product(doc.id, doc.to_dict())
+        return Product(None, {'name': 'Produk Terhapus'})
     
-    table_number = db.Column(db.String(10), nullable=True)
-    queue_number = db.Column(db.String(10), nullable=True)
+    @property
+    def date(self):
+        d = self._data.get('date')
+        if isinstance(d, str):
+            try: return datetime.fromisoformat(d)
+            except: pass
+        return datetime.now()
+
+class Review(FirestoreModel):
+    @property
+    def customer(self):
+        cid = self._data.get('customer_id')
+        if cid:
+            d = db.collection('customers').document(str(cid)).get()
+            if d.exists: return Customer(d.id, d.to_dict())
+        return Customer(None, {'name': 'Unknown'})
     
-    date = db.Column(db.DateTime, default=datetime.now)
+    @property
+    def product(self):
+        pid = self._data.get('product_id')
+        if pid:
+            d = db.collection('products').document(str(pid)).get()
+            if d.exists: return Product(d.id, d.to_dict())
+        return Product(None, {'name': 'Unknown'})
+        
+    @property
+    def created_at(self):
+        d = self._data.get('created_at')
+        try: return datetime.fromisoformat(str(d))
+        except: return datetime.now()
 
-class Review(db.Model):
-    id = db.Column(db.Integer, primary_key=True)
-    customer_id = db.Column(db.Integer, db.ForeignKey('customer.id'), nullable=False)
-    product_id = db.Column(db.Integer, db.ForeignKey('product.id'), nullable=False)
-    rating = db.Column(db.Integer, nullable=False)
-    comment = db.Column(db.Text, nullable=True)
-    created_at = db.Column(db.DateTime, default=datetime.now)
-    customer = db.relationship('Customer', backref='reviews')
-    product = db.relationship('Product', backref='reviews')
+class Favorite(FirestoreModel):
+    @property
+    def customer(self):
+        cid = self._data.get('customer_id')
+        if cid:
+            d = db.collection('customers').document(str(cid)).get()
+            if d.exists: return Customer(d.id, d.to_dict())
+        return Customer(None, {'name': 'Unknown'})
+    
+    @property
+    def product(self):
+        pid = self._data.get('product_id')
+        if pid:
+            d = db.collection('products').document(str(pid)).get()
+            if d.exists: return Product(d.id, d.to_dict())
+        return Product(None, {'name': 'Unknown'})
 
-class Favorite(db.Model):
-    id = db.Column(db.Integer, primary_key=True)
-    customer_id = db.Column(db.Integer, db.ForeignKey('customer.id'), nullable=False)
-    product_id = db.Column(db.Integer, db.ForeignKey('product.id'), nullable=False)
-    created_at = db.Column(db.DateTime, default=datetime.now)
-    customer = db.relationship('Customer', backref='favorites')
-    product = db.relationship('Product', backref='favorites')
+class PointRedemption(FirestoreModel):
+    @property
+    def customer(self):
+        cid = self._data.get('customer_id')
+        if cid:
+            d = db.collection('customers').document(str(cid)).get()
+            if d.exists: return Customer(d.id, d.to_dict())
+        return Customer(None, {'name': 'Unknown'})
+    
+    @property
+    def date(self):
+        d = self._data.get('date')
+        try: return datetime.fromisoformat(str(d))
+        except: return datetime.now()
 
-class Banner(db.Model):
-    id = db.Column(db.Integer, primary_key=True)
-    title = db.Column(db.String(100), nullable=False)
-    image_data = db.Column(db.LargeBinary, nullable=False) 
-    mimetype = db.Column(db.String(50), nullable=False)
-    is_active = db.Column(db.Boolean, default=True)
-
-class SocialPost(db.Model):
-    id = db.Column(db.Integer, primary_key=True)
-    platform = db.Column(db.String(50), nullable=False) 
-    content = db.Column(db.Text, nullable=False)
-    schedule_time = db.Column(db.DateTime, nullable=False)
-    status = db.Column(db.String(20), default='Scheduled') 
-
-class Voucher(db.Model):
-    id = db.Column(db.Integer, primary_key=True)
-    code = db.Column(db.String(20), unique=True, nullable=False) 
-    discount_amount = db.Column(db.Integer, nullable=False)      
-    is_active = db.Column(db.Boolean, default=True)
-
-# KONSTANTA POINT RATE
 EARN_RATE = 5000 
 
-with app.app_context():
-    db.create_all()
+def get_all_collection(collection_name, model_class):
+    docs = db.collection(collection_name).stream()
+    return [model_class(doc.id, doc.to_dict()) for doc in docs]
+
+def get_doc_by_id(collection_name, doc_id, model_class):
+    doc = db.collection(collection_name).document(str(doc_id)).get()
+    if doc.exists: return model_class(doc.id, doc.to_dict())
+    return None
 
 # ==========================================
-# 3. WEB ROUTES (ADMIN PANEL)
+# 3. ROUTES
 # ==========================================
 
 @app.context_processor
 def inject_theme():
-    theme = {
-        'primary_color': '#2563eb', 
-        'sidebar_color': '#1e3a8a', 
-        'font_family': 'Poppins'
-    }
-    return dict(theme=theme)
+    return dict(theme={'primary_color': '#2563eb', 'sidebar_color': '#1e3a8a', 'font_family': 'Poppins'})
 
 @app.route('/login', methods=['GET', 'POST'])
 def login():
     if current_user.is_authenticated: return redirect(url_for('index'))
     if request.method == 'POST':
-        user = User.query.filter_by(username=request.form['username']).first()
-        if user and user.check_password(request.form['password']):
-            login_user(user); return redirect(url_for('index'))
-        flash("Gagal login.", "danger")
+        username = request.form['username']
+        password = request.form['password']
+        
+        users_ref = db.collection('users').where('username', '==', username).limit(1).stream()
+        user_data, user_id = None, None
+        for doc in users_ref:
+            user_data = doc.to_dict()
+            user_id = doc.id
+            break
+            
+        if user_data:
+            user_obj = User(user_id, user_data)
+            if user_obj.check_password(password):
+                login_user(user_obj)
+                return redirect(url_for('index'))
+        flash("Username atau password salah.", "danger")
     return render_template('login.html')
 
 @app.route('/register', methods=['GET', 'POST'])
 def register():
     if current_user.is_authenticated: return redirect(url_for('index'))
     if request.method == 'POST':
-        if User.query.filter_by(username=request.form['username']).first():
-            flash("Username ada.", "warning"); return redirect(url_for('register'))
-        new_user = User(username=request.form['username']); new_user.set_password(request.form['password'])
-        db.session.add(new_user); db.session.commit(); flash("Akun dibuat.", "success"); return redirect(url_for('login'))
+        username = request.form['username']
+        password = request.form['password']
+        
+        check = db.collection('users').where('username', '==', username).get()
+        if len(check) > 0:
+            flash("Username sudah ada.", "warning")
+            return redirect(url_for('register'))
+            
+        new_data = {
+            'username': username,
+            'password_hash': generate_password_hash(password),
+            'full_name': 'Admin',
+            'email': '', 'address': ''
+        }
+        # PENGGUNAAN ID MANUAL
+        user_id = generate_id()
+        db.collection('users').document(user_id).set(new_data)
+        
+        flash("Akun dibuat. Silakan login.", "success")
+        return redirect(url_for('login'))
     return render_template('register.html')
 
 @app.route('/logout')
@@ -199,225 +240,234 @@ def logout(): logout_user(); return redirect(url_for('login'))
 @app.route('/')
 @login_required
 def index():
-    products = Product.query.all()
-    latest = Transaction.query.order_by(Transaction.date.desc()).limit(5).all()
-    total_customers = Customer.query.count()
+    products = get_all_collection('products', Product)
+    trx_docs = db.collection('transactions').stream()
+    all_trx = [Transaction(d.id, d.to_dict()) for d in trx_docs]
+    all_trx.sort(key=lambda x: x.date, reverse=True)
+    latest = all_trx[:5]
+    
+    customers_count = len(list(db.collection('customers').stream()))
     total_stock = sum(p.stock for p in products)
-    return render_template('index.html', total_products=len(products), total_stock=total_stock, total_customers=total_customers, latest_transactions=latest)
+    
+    return render_template('index.html', total_products=len(products), total_stock=total_stock, total_customers=customers_count, latest_transactions=latest)
 
 @app.route('/products')
 @login_required
-def products(): return render_template('products.html', products=Product.query.all())
+def products():
+    return render_template('products.html', products=get_all_collection('products', Product))
 
 @app.route('/reset_products')
 @login_required
 def reset_products():
     try:
-        Transaction.query.delete()
-        Review.query.delete()
-        Favorite.query.delete()
-        Product.query.delete()
-        db.session.commit()
-
-        db.session.execute(text("ALTER TABLE product AUTO_INCREMENT = 1"))
-        db.session.execute(text("ALTER TABLE transaction AUTO_INCREMENT = 1"))
-        db.session.commit()
-        
-        flash("Semua produk dihapus. ID di-reset ke 1.", "success")
-    except Exception as e:
-        db.session.rollback()
-        flash(f"Gagal reset: {e}", "danger")
-    
+        for col in ['transactions', 'reviews', 'favorites', 'products']:
+            for doc in db.collection(col).list_documents(): doc.delete()
+        flash("Semua data produk telah direset.", "success")
+    except Exception as e: flash(f"Gagal reset: {e}", "danger")
     return redirect(url_for('products'))
 
 @app.route('/add', methods=['POST', 'GET'])
 @login_required
 def add():
-    categories = Category.query.all()
+    categories = get_all_collection('categories', Category)
     if request.method == 'POST':
         file = request.files.get('image')
-        img_data = None
-        mtype = None
+        img_b64, mtype = None, None
+        
         if file and file.filename != '':
-            img_data = file.read()
             mtype = file.mimetype
+            img_b64 = base64.b64encode(file.read()).decode('utf-8')
         
         raw_price = request.form['price'].replace('.', '') 
         price = int(raw_price) if raw_price else 0
         
-        new_prod = Product(
-            name=request.form['name'], 
-            category_id=request.form.get('category_id'), 
-            price=price,
-            stock=int(request.form['stock']), 
-            description=request.form['description'],
-            image_data=img_data,
-            mimetype=mtype
-        )
-        db.session.add(new_prod)
-        db.session.commit()
+        new_prod = {
+            'name': request.form['name'], 
+            'category_id': request.form.get('category_id'), 
+            'price': price,
+            'stock': int(request.form['stock']), 
+            'description': request.form['description'],
+            'image_base64': img_b64, 'mimetype': mtype
+        }
+        
+        # PENGGUNAAN ID MANUAL
+        prod_id = generate_id()
+        db.collection('products').document(prod_id).set(new_prod)
+        
         flash("Produk ditambah.", "success")
         return redirect(url_for('products'))
     return render_template('add.html', categories=categories)
 
-@app.route('/edit/<int:id>', methods=['POST', 'GET'])
+@app.route('/edit/<id>', methods=['POST', 'GET'])
 @login_required
 def edit(id):
-    p = Product.query.get_or_404(id)
-    categories = Category.query.all()
+    p = get_doc_by_id('products', id, Product)
+    if not p:
+        flash("Produk tidak ditemukan", "danger")
+        return redirect(url_for('products'))
+        
+    categories = get_all_collection('categories', Category)
     if request.method == 'POST':
-        p.name = request.form['name']
-        p.category_id = request.form.get('category_id')
-        
+        update_data = {}
+        update_data['name'] = request.form['name']
+        update_data['category_id'] = request.form.get('category_id')
         raw_price = request.form['price'].replace('.', '')
-        p.price = int(raw_price) if raw_price else 0
-        
-        p.stock = int(request.form['stock'])
-        p.description = request.form['description']
+        update_data['price'] = int(raw_price) if raw_price else 0
+        update_data['stock'] = int(request.form['stock'])
+        update_data['description'] = request.form['description']
         
         file = request.files.get('image')
         if file and file.filename != '':
-            p.image_data = file.read()
-            p.mimetype = file.mimetype
+            update_data['image_base64'] = base64.b64encode(file.read()).decode('utf-8')
+            update_data['mimetype'] = file.mimetype
             
-        db.session.commit()
+        db.collection('products').document(id).update(update_data)
         flash("Produk diperbarui.", "info")
         return redirect(url_for('products'))
     return render_template('edit.html', product=p, categories=categories)
 
-@app.route('/delete/<int:id>')
+@app.route('/delete/<id>')
 @login_required
 def delete(id):
-    p = Product.query.get_or_404(id)
     try:
-        Transaction.query.filter_by(product_id=id).delete()
-        Review.query.filter_by(product_id=id).delete()
-        Favorite.query.filter_by(product_id=id).delete()
-        db.session.delete(p)
-        db.session.commit()
+        # Cascade delete manual
+        for t in db.collection('transactions').where('product_id', '==', id).stream(): t.reference.delete()
+        for r in db.collection('reviews').where('product_id', '==', id).stream(): r.reference.delete()
+        for f in db.collection('favorites').where('product_id', '==', id).stream(): f.reference.delete()
         
-        if Product.query.count() == 0:
-            db.session.execute(text("ALTER TABLE product AUTO_INCREMENT = 1"))
-            db.session.commit()
-            flash(f"Produk dihapus. Data habis, ID di-reset ke 1.", "warning")
-        else:
-            flash(f"Produk '{p.name}' berhasil dihapus.", "success")
-            
-    except Exception as e:
-        db.session.rollback()
-        flash(f"Gagal hapus: {str(e)}", "warning")
+        db.collection('products').document(id).delete()
+        flash("Produk dihapus.", "success")
+    except Exception as e: flash(f"Gagal hapus: {e}", "warning")
     return redirect(url_for('products'))
 
-@app.route('/product_image/<int:id>')
+@app.route('/product_image/<id>')
 def product_image(id):
-    p = Product.query.get_or_404(id)
-    if p.image_data:
-        return send_file(BytesIO(p.image_data), mimetype=p.mimetype)
+    doc = db.collection('products').document(id).get()
+    if doc.exists:
+        data = doc.to_dict()
+        if data.get('image_base64'):
+            img_data = base64.b64decode(data['image_base64'])
+            return send_file(BytesIO(img_data), mimetype=data.get('mimetype', 'image/jpeg'))
     return redirect("https://via.placeholder.com/150")
 
 @app.route('/categories', methods=['GET', 'POST'])
 @login_required
 def categories():
-    if request.method == 'POST': db.session.add(Category(name=request.form['name'])); db.session.commit(); flash("Kategori dibuat.", "success"); return redirect(url_for('categories'))
-    return render_template('categories.html', categories=Category.query.all())
+    if request.method == 'POST':
+        cat_id = generate_id()
+        db.collection('categories').document(cat_id).set({'name': request.form['name']})
+        flash("Kategori dibuat.", "success")
+        return redirect(url_for('categories'))
+    return render_template('categories.html', categories=get_all_collection('categories', Category))
 
-@app.route('/delete_category/<int:id>')
+@app.route('/delete_category/<id>')
 @login_required
 def delete_category(id):
-    try: db.session.delete(Category.query.get_or_404(id)); db.session.commit()
-    except: db.session.rollback()
+    db.collection('categories').document(id).delete()
     return redirect(url_for('categories'))
 
 @app.route('/customers')
 @login_required
 def customers():
-    return render_template('customers.html', customers=Customer.query.order_by(Customer.points.desc()).all(), history=PointRedemption.query.order_by(PointRedemption.date.desc()).all())
+    all_cust = get_all_collection('customers', Customer)
+    all_cust.sort(key=lambda x: x.points, reverse=True)
+    all_hist = get_all_collection('point_redemptions', PointRedemption)
+    all_hist.sort(key=lambda x: x.date, reverse=True)
+    return render_template('customers.html', customers=all_cust, history=all_hist)
 
-@app.route('/customer/<int:id>')
+@app.route('/customer/<id>')
 @login_required
 def customer_detail(id):
-    c = Customer.query.get_or_404(id)
-    trx = Transaction.query.filter_by(customer_phone=c.phone).order_by(Transaction.date.desc()).all()
-    rev = Review.query.filter_by(customer_id=id).all()
-    fav = Favorite.query.filter_by(customer_id=id).all()
+    c = get_doc_by_id('customers', id, Customer)
+    if not c: return redirect(url_for('customers'))
+    
+    trx = [Transaction(d.id, d.to_dict()) for d in db.collection('transactions').where('customer_phone', '==', c.phone).stream()]
+    trx.sort(key=lambda x: x.date, reverse=True)
+    
+    rev = [Review(d.id, d.to_dict()) for d in db.collection('reviews').where('customer_id', '==', id).stream()]
+    fav = [Favorite(d.id, d.to_dict()) for d in db.collection('favorites').where('customer_id', '==', id).stream()]
+    
     return render_template('customer_detail.html', c=c, transactions=trx, reviews=rev, favorites=fav)
 
 @app.route('/discounts', methods=['GET', 'POST'])
 @login_required
 def discounts():
-    if request.method == 'POST': db.session.add(Voucher(code=request.form['code'].upper(), discount_amount=int(request.form['amount']))); db.session.commit(); flash("Voucher dibuat.", "success"); return redirect(url_for('discounts'))
-    return render_template('discounts.html', vouchers=Voucher.query.all())
+    if request.method == 'POST':
+        v_id = generate_id()
+        db.collection('vouchers').document(v_id).set({
+            'code': request.form['code'].upper(),
+            'discount_amount': int(request.form['amount']),
+            'is_active': True
+        })
+        flash("Voucher dibuat.", "success")
+        return redirect(url_for('discounts'))
+    
+    docs = db.collection('vouchers').stream()
+    vouchers = [FirestoreModel(d.id, d.to_dict()) for d in docs]
+    return render_template('discounts.html', vouchers=vouchers)
 
-@app.route('/delete_discount/<int:id>')
+@app.route('/delete_discount/<id>')
 @login_required
-def delete_discount(id): db.session.delete(Voucher.query.get_or_404(id)); db.session.commit(); return redirect(url_for('discounts'))
+def delete_discount(id):
+    db.collection('vouchers').document(id).delete()
+    return redirect(url_for('discounts'))
 
 @app.route('/transactions')
 @login_required
 def transactions():
-    raw_transactions = Transaction.query.order_by(Transaction.date.desc()).all()
-    grouped_data = {}
+    raw_transactions = get_all_collection('transactions', Transaction)
+    raw_transactions.sort(key=lambda x: x.date, reverse=True)
     
+    grouped_data = {}
     for t in raw_transactions:
-        queue_num = getattr(t, 'queue_number', '-')
-        table_num = getattr(t, 'table_number', '-')
-        group_key = (t.date, t.customer_phone, queue_num)
+        # Grouping key
+        group_key = (str(t.date), t.customer_phone, str(t.queue_number or '-'))
         
         if group_key not in grouped_data:
             grouped_data[group_key] = {
                 'date': t.date,
-                'queue_number': queue_num,
-                'table_number': table_num,
+                'queue_number': t.queue_number or '-',
+                'table_number': t.table_number or '-',
                 'customer_name': t.customer_name,
                 'list_belanja': [],
-                'total_discount': 0,
-                'total_final': 0,
-                'total_points': 0
+                'total_discount': 0, 'total_final': 0, 'total_points': 0
             }
         
-        grouped_data[group_key]['list_belanja'].append({
-            'name': t.product.name if t.product else 'Produk Terhapus',
-            'qty': t.quantity
-        })
-        grouped_data[group_key]['total_discount'] += (t.discount_voucher or 0)
-        grouped_data[group_key]['total_final'] += t.final_price
-        grouped_data[group_key]['total_points'] += t.points_earned
+        prod_name = t.product.name if t.product else 'Produk Terhapus'
+        grouped_data[group_key]['list_belanja'].append({'name': prod_name, 'qty': int(t.quantity or 0)})
+        grouped_data[group_key]['total_discount'] += int(t.discount_voucher or 0)
+        grouped_data[group_key]['total_final'] += int(t.final_price or 0)
+        grouped_data[group_key]['total_points'] += int(t.points_earned or 0)
 
     transactions_list = list(grouped_data.values())
     transactions_list.sort(key=lambda x: x['date'], reverse=True)
-
     return render_template('transactions.html', transactions=transactions_list)
 
 @app.route('/change_password', methods=['POST'])
 @login_required
 def change_password():
-    old_pass = request.form['old_password']
-    new_pass = request.form['new_password']
-    confirm_pass = request.form['confirm_password']
+    old = request.form['old_password']
+    new = request.form['new_password']
+    confirm = request.form['confirm_password']
 
-    if not current_user.check_password(old_pass):
-        flash("Gagal ganti password: Password lama salah.", "danger")
+    if not current_user.check_password(old):
+        flash("Password lama salah.", "danger")
         return redirect(url_for('profile'))
 
-    if new_pass != confirm_pass:
-        flash("Gagal ganti password: Konfirmasi password tidak cocok.", "danger")
+    if new != confirm:
+        flash("Konfirmasi password tidak cocok.", "danger")
         return redirect(url_for('profile'))
 
-    try:
-        current_user.set_password(new_pass)
-        db.session.commit()
-        flash("Password berhasil diubah!", "success")
-    except Exception as e:
-        db.session.rollback()
-        flash(f"Terjadi kesalahan: {e}", "danger")
-    
+    current_user.set_password(new)
+    db.collection('users').document(current_user.id).update({'password_hash': current_user._data['password_hash']})
+    flash("Password berhasil diubah!", "success")
     return redirect(url_for('profile'))
 
 @app.route('/add_transaction', methods=['GET', 'POST'])
 @login_required
 def add_transaction():
-    products = Product.query.all()
-    categories = Category.query.all()
+    products = get_all_collection('products', Product)
+    categories = get_all_collection('categories', Category)
     
     if request.method == 'POST':
         try:
@@ -438,94 +488,88 @@ def add_transaction():
             product_map = {}
             
             for item in cart_items:
-                pid = int(item['id'])
+                pid = str(item['id'])
                 qty = int(item['qty'])
-                prod = Product.query.get(pid)
-                
-                if not prod:
-                    flash(f"Produk ID {pid} tidak ditemukan.", "danger")
+                prod = get_doc_by_id('products', pid, Product)
+                if not prod or prod.stock < qty:
+                    flash(f"Stok produk {pid} tidak cukup/valid.", "danger")
                     return redirect(url_for('add_transaction'))
-                
-                if prod.stock < qty:
-                    flash(f"Stok {prod.name} kurang! Sisa: {prod.stock}", "danger")
-                    return redirect(url_for('add_transaction'))
-                
                 product_map[pid] = prod
                 total_gross += prod.price * qty
 
             disc_voucher_total = 0
             code = None
             if ivoucher:
-                v = Voucher.query.filter_by(code=ivoucher, is_active=True).first()
-                if v:
-                    disc_voucher_total = v.discount_amount
+                v_docs = db.collection('vouchers').where('code', '==', ivoucher).where('is_active', '==', True).stream()
+                for doc in v_docs:
+                    v = doc.to_dict()
+                    disc_voucher_total = v['discount_amount']
                     code = ivoucher
-                    if disc_voucher_total > total_gross: 
-                        disc_voucher_total = total_gross
-                    flash(f"Voucher {code} dipakai! Hemat Rp {disc_voucher_total}", "success")
-                else:
-                    flash(f"Voucher '{ivoucher}' tidak valid.", "warning")
+                    break
+            if disc_voucher_total > total_gross: disc_voucher_total = total_gross
 
             final_total_transaksi = total_gross - disc_voucher_total
-            cust = Customer.query.filter_by(phone=c_phone).first()
-            if not cust:
-                cust = Customer(name=c_name, phone=c_phone, address=c_addr, points=0)
-                db.session.add(cust)
-            
             total_earn = int(final_total_transaksi / EARN_RATE)
-            cust.points += total_earn
+            
+            # Upsert Customer
+            cust_ref = db.collection('customers').where('phone', '==', c_phone).limit(1).stream()
+            cust_found = False
+            for d in cust_ref:
+                d.reference.update({'points': d.to_dict().get('points', 0) + total_earn})
+                cust_found = True
+                break
+            
+            if not cust_found:
+                new_cust_id = generate_id()
+                db.collection('customers').document(new_cust_id).set({
+                    'name': c_name, 'phone': c_phone, 'address': c_addr, 'points': total_earn, 'email': ''
+                })
 
-            today_str = datetime.now().strftime('%Y-%m-%d')
-            last_trx = Transaction.query.filter(
-                func.date(Transaction.date) == today_str
-            ).order_by(Transaction.id.desc()).first()
-
-            new_queue = "001"
-            if last_trx and last_trx.queue_number:
-                try:
-                    last_num = int(last_trx.queue_number)
-                    new_queue = str(last_num + 1).zfill(3)
-                except:
-                    new_queue = "001"
-
+            new_queue = str(random.randint(1, 999)).zfill(3)
             remaining_disc = disc_voucher_total
+            now_time = datetime.now()
+            batch = db.batch()
             
             for index, item in enumerate(cart_items):
-                pid = int(item['id'])
+                pid = str(item['id'])
                 qty = int(item['qty'])
                 prod = product_map[pid]
-                
                 item_gross = prod.price * qty
                 
                 if total_gross > 0:
-                    if index == len(cart_items) - 1:
-                        item_disc = remaining_disc
+                    if index == len(cart_items) - 1: item_disc = remaining_disc
                     else:
                         item_disc = int((item_gross / total_gross) * disc_voucher_total)
                         remaining_disc -= item_disc
-                else:
-                    item_disc = 0
-
-                item_final = item_gross - item_disc
-                prod.stock -= qty
+                else: item_disc = 0
                 
-                new_trx = Transaction(
-                    product_id=pid, customer_name=c_name, customer_phone=c_phone, customer_address=c_addr,
-                    quantity=qty, total_price=item_gross, 
-                    voucher_code=code if item_disc > 0 else None, 
-                    discount_voucher=item_disc,
-                    points_earned=int(item_final / EARN_RATE),
-                    final_price=item_final, payment_method=pay,
-                    table_number=table_num, queue_number=new_queue 
-                )
-                db.session.add(new_trx)
+                item_final = item_gross - item_disc
+                
+                # Update Stock
+                prod_ref = db.collection('products').document(pid)
+                batch.update(prod_ref, {'stock': prod.stock - qty})
+                
+                # Add Transaction (ID MANUAL)
+                # Tambahkan random suffix agar unik per item dalam 1 transaksi
+                trx_id = generate_id() + str(index) 
+                trx_ref = db.collection('transactions').document(trx_id)
+                
+                batch.set(trx_ref, {
+                    'product_id': pid, 'customer_name': c_name, 'customer_phone': c_phone, 'customer_address': c_addr,
+                    'quantity': qty, 'total_price': item_gross, 
+                    'voucher_code': code if item_disc > 0 else None, 
+                    'discount_voucher': item_disc,
+                    'points_earned': int(item_final / EARN_RATE),
+                    'final_price': item_final, 'payment_method': pay,
+                    'table_number': table_num, 'queue_number': new_queue,
+                    'date': now_time.isoformat()
+                })
 
-            db.session.commit()
+            batch.commit()
             flash(f"Transaksi Berhasil! Antrian: {new_queue}, Total: Rp {final_total_transaksi:,}", "success")
             return redirect(url_for('transactions'))
 
         except Exception as e:
-            db.session.rollback()
             flash(f"Error: {e}", "danger")
             return redirect(url_for('add_transaction'))
             
@@ -533,14 +577,23 @@ def add_transaction():
 
 @app.route('/banners')
 @login_required
-def banners(): return render_template('banners.html', banners=Banner.query.all())
+def banners():
+    docs = db.collection('banners').stream()
+    banners = [FirestoreModel(d.id, d.to_dict()) for d in docs]
+    return render_template('banners.html', banners=banners)
 
 @app.route('/add_banner', methods=['POST'])
 @login_required
 def add_banner():
-    title = request.form.get('title')
     file = request.files['image']
-    if file: db.session.add(Banner(title=title, image_data=file.read(), mimetype=file.mimetype)); db.session.commit(); flash("Banner ditambahkan.", "success")
+    if file:
+        img_b64 = base64.b64encode(file.read()).decode('utf-8')
+        b_id = generate_id()
+        db.collection('banners').document(b_id).set({
+            'title': request.form.get('title'), 
+            'image_base64': img_b64, 'mimetype': file.mimetype, 'is_active': True
+        })
+        flash("Banner ditambahkan.", "success")
     else: flash("File gambar wajib diisi.", "danger")
     return redirect(url_for('banners'))
 
@@ -549,168 +602,155 @@ def add_banner():
 def edit_banner():
     try:
         b_id = request.form.get('banner_id')
-        b = Banner.query.get_or_404(b_id)
-        b.title = request.form.get('title')
-        b.is_active = True if request.form.get('is_active') else False
+        data = {
+            'title': request.form.get('title'),
+            'is_active': True if request.form.get('is_active') else False
+        }
         file = request.files.get('image')
         if file and file.filename != '':
-            b.image_data = file.read()
-            b.mimetype = file.mimetype
-        db.session.commit(); flash("Banner diperbarui.", "success")
-    except Exception as e: flash(f"Gagal update banner: {e}", "danger")
+            data['image_base64'] = base64.b64encode(file.read()).decode('utf-8')
+            data['mimetype'] = file.mimetype
+        db.collection('banners').document(b_id).update(data)
+        flash("Banner diperbarui.", "success")
+    except Exception as e: flash(f"Gagal: {e}", "danger")
     return redirect(url_for('banners'))
 
-@app.route('/delete_banner/<int:id>')
+@app.route('/delete_banner/<id>')
 @login_required
 def delete_banner(id):
-    b = Banner.query.get_or_404(id); db.session.delete(b); db.session.commit(); flash("Banner dihapus.", "warning"); return redirect(url_for('banners'))
+    db.collection('banners').document(id).delete()
+    return redirect(url_for('banners'))
 
-@app.route('/banner_image/<int:id>')
+@app.route('/banner_image/<id>')
 def banner_image(id):
-    b = Banner.query.get_or_404(id)
-    return send_file(BytesIO(b.image_data), mimetype=b.mimetype)
+    doc = db.collection('banners').document(id).get()
+    if doc.exists:
+        data = doc.to_dict()
+        if data.get('image_base64'):
+            img_data = base64.b64decode(data['image_base64'])
+            return send_file(BytesIO(img_data), mimetype=data.get('mimetype', 'image/jpeg'))
+    return redirect("https://via.placeholder.com/300x150")
 
 @app.route('/profile')
 @login_required
 def profile():
-    recent_trx = Transaction.query.order_by(Transaction.date.desc()).limit(10).all()
-    return render_template('profile.html', transactions=recent_trx)
+    docs = db.collection('transactions').stream()
+    trx = [Transaction(d.id, d.to_dict()) for d in docs]
+    trx.sort(key=lambda x: x.date, reverse=True)
+    return render_template('profile.html', transactions=trx[:10])
 
 @app.route('/update_profile', methods=['POST'])
 @login_required
 def update_profile():
-    current_user.full_name = request.form['full_name']; current_user.email = request.form['email']; current_user.address = request.form['address']
-    db.session.commit(); flash("Profil diperbarui.", "success"); return redirect(url_for('profile'))
+    data = {'full_name': request.form['full_name'], 'email': request.form['email'], 'address': request.form['address']}
+    db.collection('users').document(current_user.id).update(data)
+    current_user._data.update(data)
+    flash("Profil diperbarui.", "success")
+    return redirect(url_for('profile'))
 
 @app.route('/update_customer', methods=['POST'])
 @login_required
 def update_customer():
-    c = Customer.query.get_or_404(request.form.get('customer_id'))
+    cid = request.form.get('customer_id')
     try:
-        c.name = request.form.get('name'); c.phone = request.form.get('phone'); c.email = request.form.get('email'); c.address = request.form.get('address')
-        if request.form.get('password'): c.password = generate_password_hash(request.form.get('password'))
-        db.session.commit(); flash("Pelanggan diperbarui.", "success")
-    except Exception as e: db.session.rollback(); flash(f"Error: {e}", "danger")
-    return redirect(url_for('customer_detail', id=c.id))
+        data = {
+            'name': request.form.get('name'), 'phone': request.form.get('phone'),
+            'email': request.form.get('email'), 'address': request.form.get('address')
+        }
+        if request.form.get('password'):
+            data['password'] = generate_password_hash(request.form.get('password'))
+        db.collection('customers').document(cid).update(data)
+        flash("Pelanggan diperbarui.", "success")
+    except Exception as e: flash(f"Error: {e}", "danger")
+    return redirect(url_for('customer_detail', id=cid))
 
 @app.route('/redeem_points', methods=['POST'])
 @login_required
 def redeem_points():
-    c = Customer.query.get_or_404(request.form.get('customer_id'))
-    pts = int(request.form.get('points_to_redeem')); desc = request.form.get('description')
-    if c.points >= pts:
-        c.points -= pts; db.session.add(PointRedemption(customer_id=c.id, points_spent=pts, description=desc)); db.session.commit()
-        flash(f"Tukar {pts} poin berhasil.", "success")
-    else: flash("Poin tidak cukup.", "danger")
+    cid = request.form.get('customer_id')
+    pts = int(request.form.get('points_to_redeem'))
+    desc = request.form.get('description')
+    
+    c_doc = db.collection('customers').document(cid).get()
+    if c_doc.exists:
+        curr = c_doc.to_dict().get('points', 0)
+        if curr >= pts:
+            db.collection('customers').document(cid).update({'points': curr - pts})
+            rid = generate_id()
+            db.collection('point_redemptions').document(rid).set({
+                'customer_id': cid, 'points_spent': pts, 'description': desc, 'date': datetime.now().isoformat()
+            })
+            flash(f"Tukar {pts} poin berhasil.", "success")
+        else: flash("Poin tidak cukup.", "danger")
     return redirect(url_for('customers'))
 
 @app.route('/reviews')
 @login_required
-def reviews(): return render_template('reviews.html', reviews=Review.query.order_by(Review.created_at.desc()).all())
+def reviews():
+    revs = get_all_collection('reviews', Review)
+    revs.sort(key=lambda x: x.created_at, reverse=True)
+    return render_template('reviews.html', reviews=revs)
 
-@app.route('/delete_review/<int:id>')
+@app.route('/delete_review/<id>')
 @login_required
-def delete_review(id): db.session.delete(Review.query.get_or_404(id)); db.session.commit(); flash("Ulasan dihapus.", "danger"); return redirect(url_for('reviews'))
+def delete_review(id):
+    db.collection('reviews').document(id).delete()
+    return redirect(url_for('reviews'))
 
 @app.route('/favorites')
 @login_required
-def favorites(): return render_template('favorites.html', favorites=Favorite.query.order_by(Favorite.created_at.desc()).all())
+def favorites():
+    favs = get_all_collection('favorites', Favorite)
+    favs.sort(key=lambda x: x.created_at, reverse=True)
+    return render_template('favorites.html', favorites=favs)
 
 @app.route('/analytics')
 @login_required
 def analytics():
-    daily_sales = db.session.query(func.date(Transaction.date), func.sum(Transaction.final_price))\
-        .group_by(func.date(Transaction.date))\
-        .order_by(func.date(Transaction.date).desc()).limit(7).all()
+    all_trx = get_all_collection('transactions', Transaction)
+    daily_sales = {}
+    peak_hours = {}
     
-    chart_dates = [str(d[0]) for d in daily_sales][::-1]
-    chart_revenue = [int(d[1]) for d in daily_sales][::-1]
-
-    top_products = db.session.query(Product.name, func.sum(Transaction.quantity))\
-        .join(Transaction).group_by(Product.name)\
-        .order_by(func.sum(Transaction.quantity).desc()).limit(5).all()
-
-    peak_hours = db.session.query(extract('hour', Transaction.date), func.count(Transaction.id))\
-        .group_by(extract('hour', Transaction.date))\
-        .order_by(func.count(Transaction.id).desc()).all()
-    
-    peak_hour_data = {f"{int(h[0])}:00": h[1] for h in peak_hours}
-
-    insights = []
-    if not chart_revenue:
-        insights.append("Belum ada data penjualan yang cukup.")
-    else:
-        if len(chart_revenue) > 1 and chart_revenue[-1] < chart_revenue[0]: 
-            insights.append("Tren penjualan menurun.")
-        if peak_hours and peak_hours[0][0] > 17:
-            insights.append("Pelanggan aktif malam hari.")
-    
-    campaigns = [] 
+    for t in all_trx:
+        d_str = t.date.strftime('%Y-%m-%d')
+        daily_sales[d_str] = daily_sales.get(d_str, 0) + int(t.final_price or 0)
+        
+        h = t.date.hour
+        k = f"{h}:00"
+        peak_hours[k] = peak_hours.get(k, 0) + 1
+        
+    sorted_dates = sorted(daily_sales.keys(), reverse=True)[:7]
+    chart_dates = sorted_dates[::-1]
+    chart_revenue = [daily_sales[d] for d in chart_dates]
 
     return render_template('analytics.html', 
                            dates=json.dumps(chart_dates), 
                            revenue=json.dumps(chart_revenue),
-                           top_products=top_products,
-                           peak_hours=peak_hour_data,
-                           insights=insights,
-                           campaigns=campaigns)
+                           peak_hours=peak_hours, insights=[], campaigns=[])
 
 @app.route('/marketing', methods=['GET', 'POST'])
 @login_required
 def marketing():
     if request.method == 'POST':
-        platform = request.form['platform']
-        content = request.form['content']
-        time_str = request.form['schedule_time'] 
-        sch_time = datetime.strptime(time_str, '%Y-%m-%dT%H:%M')
-        
-        new_post = SocialPost(platform=platform, content=content, schedule_time=sch_time)
-        db.session.add(new_post)
-        db.session.commit()
+        pid = generate_id()
+        db.collection('social_posts').document(pid).set({
+            'platform': request.form['platform'], 'content': request.form['content'],
+            'schedule_time': request.form['schedule_time'], 'status': 'Scheduled'
+        })
         flash("Postingan dijadwalkan!", "success")
         return redirect(url_for('marketing'))
-        
-    posts = SocialPost.query.order_by(SocialPost.schedule_time.asc()).all()
+    
+    posts = get_all_collection('social_posts', FirestoreModel)
     return render_template('marketing.html', posts=posts)
 
-@app.route('/edit_post/<int:id>', methods=['POST'])
-@login_required
-def edit_post(id):
-    post = SocialPost.query.get_or_404(id)
-    try:
-        post.platform = request.form['platform']
-        post.content = request.form['content']
-        time_str = request.form['schedule_time']
-        post.schedule_time = datetime.strptime(time_str, '%Y-%m-%dT%H:%M')
-        
-        db.session.commit()
-        flash("Postingan diperbarui.", "success")
-    except Exception as e:
-        db.session.rollback()
-        flash(f"Error update: {str(e)}", "danger")
-    return redirect(url_for('marketing'))
-
-@app.route('/delete_post/<int:id>')
+@app.route('/delete_post/<id>')
 @login_required
 def delete_post(id):
-    post = SocialPost.query.get_or_404(id)
-    try:
-        db.session.delete(post)
-        db.session.commit()
-        flash("Postingan dihapus.", "success")
-    except Exception as e:
-        db.session.rollback()
-        flash(f"Error hapus: {str(e)}", "danger")
+    db.collection('social_posts').document(id).delete()
     return redirect(url_for('marketing'))
 
-@app.route('/design', methods=['GET', 'POST'])
-@login_required
-def design():
-    flash("Fitur Desain Tema telah dinonaktifkan (Database dihapus).", "warning")
-    return redirect(url_for('index'))
-
 # ==========================================
-# 4. API SERVICE (MOBILE APP - UMUM)
+# 4. API SERVICE
 # ==========================================
 
 def api_response(status, message, data=None):
@@ -719,7 +759,7 @@ def api_response(status, message, data=None):
 @app.route('/api/products', methods=['GET'])
 def api_products():
     try:
-        products = Product.query.all()
+        products = get_all_collection('products', Product)
         data = []
         for p in products:
             data.append({
@@ -732,286 +772,284 @@ def api_products():
 
 @app.route('/api/banners', methods=['GET'])
 def api_banners():
+    docs = db.collection('banners').where('is_active', '==', True).stream()
+    data = [{'id': d.id, 'title': d.to_dict().get('title'), 'image_url': url_for('banner_image', id=d.id, _external=True)} for d in docs]
+    return api_response('success', 'Data banner berhasil', data)
+
+@app.route('/api/loginpengguna', methods=['POST'])
+def loginpengguna():
     try:
-        banners = Banner.query.filter_by(is_active=True).all()
-        data = [{'id': b.id, 'title': b.title, 'image_url': url_for('banner_image', id=b.id, _external=True)} for b in banners]
-        return api_response('success', 'Data banner berhasil', data)
-    except Exception as e: return api_response('error', str(e))
+        data = request.get_json(silent=True)
+        email = data.get('email') 
+        password = data.get('password')
+        
+        docs = db.collection('customers').where('email', '==', email).limit(1).stream()
+        user = None
+        for d in docs: user = Customer(d.id, d.to_dict()); break
+        
+        if user and user._data.get('password'):
+            if check_password_hash(user._data['password'], password):
+                return jsonify({
+                    'status': 'success', 'message': 'Login Berhasil',
+                    'data': {'user_id': user.id, 'name': user.name, 'email': user.email, 'points': user.points}
+                })
+        return jsonify({'status': 'error', 'message': 'Email atau password salah'})
+    except Exception as e: return jsonify({'status': 'error', 'message': str(e)})
+
+@app.route('/api/registerpengguna', methods=['POST'])
+def api_register():
+    try:
+        # 1. Ambil Data dari Flutter
+        data = request.get_json()
+        if not data:
+            return api_response('error', 'Data tidak boleh kosong')
+
+        email = data.get('email')
+        password = data.get('password')
+        name = data.get('name', 'User Baru')
+        phone = data.get('phone', '-')
+
+        # 2. VALIDASI: Cek apakah user sudah ada di Firebase Auth?
+        try:
+            # Coba cari user by email
+            user_check = auth.get_user_by_email(email)
+            # Jika baris ini berhasil (tidak error), berarti USER SUDAH ADA.
+            # Maka kita harus MENOLAK registrasi.
+            return api_response('error', 'Email sudah terdaftar. Silakan Login.')
+        except auth.UserNotFoundError:
+            # Jika error "UserNotFoundError", BERARTI AMAN (User belum ada).
+            # Lanjut buat user baru.
+            pass
+
+        # 3. Buat User Baru di Authentication
+        user = auth.create_user(
+            email=email,
+            password=password,
+            display_name=name
+        )
+
+        # 4. Simpan Data Profil ke Firestore (Database)
+        # Gunakan UID dari auth sebagai ID dokumen agar sinkron
+        user_data = {
+            'id': user.uid, # Simpan ID juga di dalam field
+            'name': name,
+            'email': email,
+            'phone': phone,
+            'role': 'Member',
+            'points': 0, # Default 0 (Jangan Null)
+            'created_at': datetime.now().isoformat()
+        }
+        
+        # .set() akan menimpa/membuat baru dengan rapi
+        db.collection('customers').document(user.uid).set(user_data)
+
+        # 5. Kembalikan Data Asli ke Flutter (Supaya bisa langsung Auto-Login)
+        return api_response('success', 'Registrasi Berhasil', user_data)
+
+    except Exception as e:
+        print(f"Register Error: {e}")
+        return api_response('error', f"Gagal Daftar: {str(e)}")
+
+@app.route('/api/vouchers', methods=['GET'])
+def api_vouchers():
+    try:
+        # Ambil voucher yang aktif saja
+        docs = db.collection('vouchers').where('is_active', '==', True).stream()
+        data = []
+        for d in docs:
+            v = d.to_dict()
+            data.append({
+                'id': d.id,
+                'code': v.get('code'),
+                'discount_amount': v.get('discount_amount'),
+                'description': f"Potongan Rp {v.get('discount_amount'):,}"
+            })
+        return api_response('success', 'Data voucher berhasil', data)
+    except Exception as e:
+        return api_response('error', str(e))
+
+# 2. API UNTUK LIST HADIAH PENUKARAN POIN (REWARDS)
+@app.route('/api/rewards', methods=['GET'])
+def api_rewards():
+    try:
+        # PENTING: Karena belum ada menu Admin Rewards, kita ambil dari collection 'products'
+        # yang harganya di bawah 50.000 sebagai contoh barang yang bisa ditukar poin.
+        # Atau Anda bisa membuat collection 'rewards' manual di Firestore.
+        
+        products = get_all_collection('products', Product)
+        data = []
+        for p in products:
+            # Logika konversi: Harga / 100 = Poin yang dibutuhkan
+            poin_cost = int(p.price / 100) 
+            
+            # Hanya tampilkan produk murah sebagai reward
+            if p.price <= 50000: 
+                data.append({
+                    'id': p.id,
+                    'title': p.name,
+                    'description': p.description or 'Tukar poinmu dengan ini!',
+                    'point_cost': poin_cost,
+                    'image_url': url_for('product_image', id=p.id, _external=True),
+                    'stock': p.stock
+                })
+        
+        return api_response('success', 'Data rewards berhasil', data)
+    except Exception as e:
+        return api_response('error', str(e))
+
+# 3. API CEK POIN USER TERBARU
+@app.route('/api/user_points/<uid>', methods=['GET'])
+def api_user_points(uid):
+    try:
+        # 1. Cari Dokumen User berdasarkan UID
+        doc_ref = db.collection('customers').document(uid)
+        doc = doc_ref.get()
+        
+        points = 0
+        if doc.exists:
+            # 2. Ambil field 'points', default 0 jika belum ada
+            user_data = doc.to_dict()
+            points = user_data.get('points', 0)
+        
+        # 3. Kembalikan data JSON yang benar
+        return api_response('success', 'Data Poin', {'points': points})
+        
+    except Exception as e:
+        print(f"Error Get Points: {e}")
+        return api_response('error', str(e), {'points': 0})
 
 @app.route('/api/checkout', methods=['POST'])
 def api_checkout():
     try:
         data = request.get_json(silent=True)
-        cust = Customer.query.get(data.get('customer_id'))
-        if not cust: return api_response('error', 'Pelanggan tidak ditemukan')
-        items = data.get('items')
-        
-        voucher_code = data.get('voucher_code'); discount_amount = 0; valid_voucher = None
-        if voucher_code:
-            v = Voucher.query.filter_by(code=voucher_code.upper(), is_active=True).first()
-            if v: discount_amount = v.discount_amount; valid_voucher = v.code
+        if not data:
+            return api_response('error', 'Data kosong')
 
-        remaining_discount = discount_amount; total_pay = 0; total_points = 0
+        # 1. Ambil Data
+        c_id = data.get('customer_id') 
+        c_name = data.get('customer_name', 'Pelanggan')
+        payment_method = data.get('payment_method', 'Cash')
+        items = data.get('items', [])
+        voucher_code = data.get('voucher_code')
+        final_price = float(data.get('final_price', 0))
+        table_number = data.get('table_number', 'Take Away')
+
+        if not items:
+            return api_response('error', 'Keranjang kosong')
+
+        # 2. Batch Write
+        batch = db.batch()
+        now_time = datetime.now().isoformat()
+        queue_no = str(random.randint(1, 999)).zfill(3)
+        
+        points_earned = int(final_price / EARN_RATE) 
+
+        # --- PERBAIKAN UTAMA DISINI (MENCEGAH ERROR 404) ---
+        # Cek apakah ID valid
+        if c_id and c_id != "Guest" and c_id != "":
+            user_ref = db.collection('customers').document(c_id)
+            user_doc = user_ref.get()
+
+            if user_doc.exists:
+                # Jika User ADA, update (tambah poin)
+                batch.update(user_ref, {'points': firestore.Increment(points_earned)})
+            else:
+                # Jika User TIDAK ADA (404), buat baru (Set)
+                batch.set(user_ref, {
+                    'name': c_name,
+                    'points': points_earned,
+                    'role': 'Member',
+                    'email': '-', # Placeholder
+                    'created_at': now_time
+                })
+        # ---------------------------------------------------
+
+        # 4. Loop Barang & Simpan Transaksi
         for item in items:
-            p = Product.query.get(item['product_id']); qty = int(item['qty'])
-            if not p or p.stock < qty: return api_response('error', f'Stok {p.name if p else ""} habis/kurang')
-            gross = p.price * qty; curr_disc = 0
-            if remaining_discount > 0:
-                curr_disc = gross if remaining_discount >= gross else remaining_discount
-                remaining_discount -= curr_disc
-            final = gross - curr_disc; earn = int(final / EARN_RATE)
-            p.stock -= qty
+            pid = str(item['id'])
+            qty = int(item['qty'])
             
-            db.session.add(Transaction(
-                product_id=p.id, customer_name=cust.name, customer_phone=cust.phone, customer_address=cust.address,
-                quantity=qty, total_price=gross, voucher_code=valid_voucher if curr_disc > 0 else None,
-                discount_voucher=curr_disc, points_earned=earn, final_price=final, payment_method=data.get('payment_method', 'Cash')
-            ))
-            total_pay += final; total_points += earn
-        cust.points += total_points; db.session.commit()
-        return api_response('success', 'Transaksi Berhasil', {'total_price': total_pay, 'points_earned': total_points, 'new_balance': cust.points})
-    except Exception as e: db.session.rollback(); return api_response('error', str(e))
-
-@app.route('/api/redeem', methods=['POST'])
-def api_redeem():
-    try:
-        data = request.get_json(silent=True)
-        cust_id = data.get('customer_id'); points = int(data.get('points'))
-        cust = Customer.query.get(cust_id)
-        if cust and cust.points >= points:
-            cust.points -= points
-            db.session.add(PointRedemption(customer_id=cust_id, points_spent=points, description=data.get('description', 'Penukaran')))
-            db.session.commit()
-            return api_response('success', 'Berhasil', {'new_balance': cust.points})
-        return api_response('error', 'Gagal')
-    except Exception as e: return api_response('error', str(e))
-
-@app.route('/api/favorites/<int:customer_id>', methods=['GET'])
-def api_get_favorites(customer_id):
-    try:
-        favs = Favorite.query.filter_by(customer_id=customer_id).all()
-        data = [{'product_id': f.product.id, 'name': f.product.name, 'price': f.product.price, 'image_url': url_for('product_image', id=f.product.id, _external=True)} for f in favs if f.product]
-        return api_response('success', 'OK', data)
-    except Exception as e: return api_response('error', str(e))
-
-@app.route('/api/products/<int:id>', methods=['GET'])
-def api_product_detail(id):
-    p = Product.query.get(id)
-    if not p:
-        return jsonify({'status': 'error', 'message': 'Data tidak ditemukan (404)'}), 404
-    
-    customer_id = request.args.get('customer_id', type=int)
-    is_fav = False
-    if customer_id:
-        fav = Favorite.query.filter_by(customer_id=customer_id, product_id=id).first()
-        is_fav = True if fav else False
-
-    return jsonify({
-        'id': p.id,
-        'name': p.name,
-        'price': p.price,
-        'description': p.description,
-        'is_favorite': is_fav,
-        'status': 'success'
-    })
-
-@app.route('/api/toggle_favorite', methods=['POST'])
-def api_toggle_favorite():
-    try:
-        data = request.get_json(silent=True)
-        cust_id = data.get('customer_id'); prod_id = data.get('product_id')
-        existing = Favorite.query.filter_by(customer_id=cust_id, product_id=prod_id).first()
-        if existing:
-            db.session.delete(existing); is_fav = False
-        else:
-            db.session.add(Favorite(customer_id=cust_id, product_id=prod_id)); is_fav = True
-        db.session.commit()
-        return api_response('success', 'Updated', {'is_favorite': is_fav})
-    except Exception as e: return api_response('error', str(e))
-
-@app.route('/api/vouchers', methods=['GET'])
-def api_get_vouchers():
-    try:
-        vouchers = Voucher.query.filter_by(is_active=True).all()
-        data = [{'id': v.id, 'code': v.code, 'discount_amount': v.discount_amount} for v in vouchers]
-        return api_response('success', 'Daftar voucher berhasil diambil', data)
-    except Exception as e:
-        return api_response('error', str(e))
-    
-@app.route('/api/catalog', methods=['GET'])
-def api_catalog():
-    try:
-        search_query = request.args.get('search')
-        category_id = request.args.get('category_id')
-        query = Product.query
-        if category_id:
-            query = query.filter_by(category_id=category_id)
-        if search_query:
-            query = query.filter(Product.name.like(f"%{search_query}%"))
-        products = query.all()
-        data = []
-        for p in products:
-            data.append({
-                'id': p.id,
-                'name': p.name,
-                'category': p.category.name if p.category else 'Umum',
-                'category_id': p.category_id,
-                'price': p.price,
-                'stock': p.stock,
-                'description': p.description,
-                'image_url': url_for('product_image', id=p.id, _external=True) 
+            # Cek Produk
+            prod_ref = db.collection('products').document(pid)
+            prod_doc = prod_ref.get()
+            
+            # Jika produk dihapus admin, skip agar tidak error 404 produk
+            if not prod_doc.exists: 
+                continue 
+            
+            # Kurangi Stok
+            p_data = prod_doc.to_dict()
+            current_stock = p_data.get('stock', 0)
+            if current_stock < qty:
+                return api_response('error', f"Stok {p_data.get('name')} habis")
+            
+            batch.update(prod_ref, {'stock': current_stock - qty})
+            
+            # Simpan History Transaksi
+            trx_id = generate_id() + str(random.randint(10,99))
+            trx_ref = db.collection('transactions').document(trx_id)
+            
+            batch.set(trx_ref, {
+                'customer_id': c_id,
+                'customer_name': c_name,
+                'product_id': pid,
+                'quantity': qty,
+                'final_price': final_price,
+                'total_price': p_data.get('price', 0) * qty,
+                'payment_method': payment_method,
+                'table_number': table_number,
+                'points_earned': points_earned,
+                'queue_number': queue_no,
+                'date': now_time,
+                'status': 'PAID'
             })
-        return api_response('success', 'Katalog produk berhasil diambil', data)
-    except Exception as e:
-        return api_response('error', str(e))
 
-@app.route('/api/categories', methods=['GET'])
-def api_categories():
-    try:
-        categories = Category.query.all()
-        data = [{'id': c.id, 'name': c.name} for c in categories]
-        return api_response('success', 'Data kategori berhasil', data)
-    except Exception as e:
-        return api_response('error', str(e))
-
-# ==========================================
-# 5. KHUSUS PENGGUNA (LOGIN & REGISTER APP)
-# ==========================================
-
-def format_nomor_hp(nomor):
-    if nomor.startswith('0'):
-        return '+62' + nomor[1:]
-    if nomor.startswith('62'):
-        return '+' + nomor
-    return nomor
-
-@app.route('/api/registerpengguna', methods=['POST'])
-def registerpengguna():
-    """
-    Fungsi khusus untuk Mendaftar Pengguna Baru.
-    Data disimpan ke MySQL DAN Firebase Authentication.
-    """
-    try:
-        # 1. Ambil data dari aplikasi
-        data = request.get_json(silent=True)
-        if not data: 
-            return jsonify({'status': 'error', 'message': 'Format JSON salah'})
-
-        nama = data.get('name')
-        hp = data.get('phone')
-        password = data.get('password')
-        email = data.get('email')  # Email sekarang menjadi PENTING
-
-        # Validasi Input
-        if not nama or not hp or not password or not email:
-            return jsonify({'status': 'error', 'message': 'Nama, No HP, Email, dan Password wajib diisi'})
-
-        # 2. Cek apakah Email atau Nomor HP sudah ada
-        if Customer.query.filter_by(email=email).first():
-            return jsonify({'status': 'error', 'message': 'Email sudah terdaftar. Silakan gunakan email lain.'})
+        batch.commit()
         
-        if Customer.query.filter_by(phone=hp).first():
-            return jsonify({'status': 'error', 'message': 'Nomor HP sudah terdaftar.'})
-
-        # 3. Simpan ke MySQL (Database Utama)
-        password_hash = generate_password_hash(password)
-        new_customer = Customer(name=nama, phone=hp, email=email, password=password_hash, points=0)
-        
-        db.session.add(new_customer)
-        db.session.commit() # Commit dulu agar dapat ID
-
-        # 4. Simpan ke Firebase Authentication (Sinkronisasi)
-        firebase_uid = None
-        status_firebase = "Belum terhubung ke Firebase"
-        
-        try:
-            hp_firebase = format_nomor_hp(hp)
-            
-            # Membuat user di Firebase
-            user_firebase = auth.create_user(
-                uid=str(new_customer.id), 
-                phone_number=hp_firebase,
-                display_name=nama,
-                password=password,
-                email=email 
-            )
-            firebase_uid = user_firebase.uid
-            status_firebase = "Sukses sinkron ke Firebase"
-
-        except Exception as fb_error:
-            # Jika gagal di Firebase, log error tapi biarkan register MySQL sukses
-            print(f"Firebase Error: {fb_error}")
-            status_firebase = f"Gagal sinkron Firebase: {str(fb_error)}"
-
-        # 5. Berikan respon sukses
-        return jsonify({
-            'status': 'success',
-            'message': f'Registrasi Berhasil. {status_firebase}',
-            'data': {
-                'id': new_customer.id,
-                'firebase_uid': firebase_uid,
-                'name': new_customer.name,
-                'email': new_customer.email
-            }
+        return api_response('success', 'Transaksi Berhasil', {
+            'order_id': queue_no,
+            'points': points_earned
         })
 
     except Exception as e:
-        db.session.rollback()
-        return jsonify({'status': 'error', 'message': f'Server Error: {str(e)}'})
-
-
-@app.route('/api/loginpengguna', methods=['POST'])
-def loginpengguna():
-    """
-    Fungsi khusus untuk Login Pengguna MENGGUNAKAN EMAIL.
-    """
+        print(f"Checkout Error: {e}")
+        return api_response('error', str(e))
+    
+@app.route('/api/transactions', methods=['GET'])
+def get_transactions():
     try:
-        data = request.get_json(silent=True)
+        # Ambil filter nama customer dari URL (opsional)
+        customer_name = request.args.get('customer_name')
         
-        # --- PERUBAHAN UTAMA DI SINI ---
-        # Mengambil 'email' dari request, bukan 'phone'
-        email = data.get('email') 
-        password = data.get('password')
-
-        if not email or not password:
-            return jsonify({'status': 'error', 'message': 'Email dan Password harus diisi'})
-
-        # 1. Cari pengguna di MySQL berdasarkan EMAIL
-        user = Customer.query.filter_by(email=email).first()
-
-        # 2. Cek Password
-        if user:
-            if user.password and check_password_hash(user.password, password):
-                # 3. (Opsional) Buat Token Firebase Custom
-                firebase_token = None
-                try:
-                    custom_token = auth.create_custom_token(str(user.id))
-                    firebase_token = custom_token.decode('utf-8')
-                except Exception:
-                    pass 
-
-                return jsonify({
-                    'status': 'success',
-                    'message': 'Login Berhasil',
-                    'data': {
-                        'user_id': user.id,
-                        'name': user.name,
-                        'phone': user.phone,
-                        'email': user.email,
-                        'points': user.points,
-                        'firebase_token': firebase_token
-                    }
-                })
-            else:
-                # Password salah
-                return jsonify({'status': 'error', 'message': 'Password salah'})
+        # Ambil referensi collection
+        docs_ref = db.collection('transactions')
         
+        # Jika ada filter nama, pakai query
+        # (Catatan: Ini case-sensitive, untuk tes bisa dimatikan dulu if-nya agar muncul semua)
+        if customer_name and customer_name != "Guest":
+            docs = docs_ref.where('customer_name', '==', customer_name).stream()
         else:
-            # Email tidak ditemukan
-            return jsonify({'status': 'error', 'message': 'Email tidak terdaftar'})
+            # Ambil semua data (limit 50 biar tidak berat)
+            docs = docs_ref.limit(50).stream()
+            
+        history_data = []
+        for doc in docs:
+            t = doc.to_dict()
+            t['id'] = doc.id
+            history_data.append(t)
+            
+        # Urutkan berdasarkan tanggal (Terbaru di atas)
+        # Asumsi format date ISO string
+        try:
+            history_data.sort(key=lambda x: x.get('date', ''), reverse=True)
+        except:
+            pass # Skip jika format tanggal error
+
+        return api_response('success', 'Data ditemukan', history_data)
 
     except Exception as e:
-        return jsonify({'status': 'error', 'message': f'Server Error: {str(e)}'})
-
+        print(f"Error Get Transactions: {e}")
+        return api_response('error', str(e))
+    
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5000, debug=True)
