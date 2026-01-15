@@ -8,6 +8,8 @@ import json
 import base64
 import time
 import random
+import base64              # <--- WAJIB DITAMBAHKAN
+from io import BytesIO     # <--- WAJIB DITAMBAHKAN
 
 # --- FIREBASE IMPORTS ---
 import firebase_admin
@@ -269,8 +271,11 @@ def reset_products():
 @app.route('/add', methods=['POST', 'GET'])
 @login_required
 def add():
+    # Ambil list kategori untuk Dropdown di HTML
     categories = get_all_collection('categories', Category)
+    
     if request.method == 'POST':
+        # 1. Handle Gambar
         file = request.files.get('image')
         img_b64, mtype = None, None
         
@@ -278,25 +283,89 @@ def add():
             mtype = file.mimetype
             img_b64 = base64.b64encode(file.read()).decode('utf-8')
         
+        # 2. Handle Harga (Hapus titik format rupiah jika ada)
         raw_price = request.form['price'].replace('.', '') 
         price = int(raw_price) if raw_price else 0
         
+        # 3. [PERBAIKAN UTAMA] Ambil Nama Kategori dari Database
+        cat_id = request.form.get('category_id')
+        cat_name = "Umum" # Default jika tidak ditemukan
+        
+        if cat_id:
+            # Cari dokumen kategori berdasarkan ID untuk ambil namanya
+            cat_doc = db.collection('categories').document(cat_id).get()
+            if cat_doc.exists:
+                cat_name = cat_doc.to_dict().get('name')
+
+        # 4. Susun Data Produk
         new_prod = {
-            'name': request.form['name'], 
-            'category_id': request.form.get('category_id'), 
+            'name': request.form['name'],
             'price': price,
             'stock': int(request.form['stock']), 
             'description': request.form['description'],
-            'image_base64': img_b64, 'mimetype': mtype
+            # Simpan ID untuk relasi admin
+            'category_id': cat_id, 
+            # WAJIB: Simpan NAMA untuk filter di Flutter
+            'category': cat_name,   
+            'image_base64': img_b64,
+            'mimetype': mtype,
+            'created_at': datetime.now().isoformat()
         }
         
-        # PENGGUNAAN ID MANUAL
+        # 5. Simpan ke Firestore
         prod_id = generate_id()
         db.collection('products').document(prod_id).set(new_prod)
         
-        flash("Produk ditambah.", "success")
+        flash("Produk berhasil ditambahkan.", "success")
         return redirect(url_for('products'))
+        
     return render_template('add.html', categories=categories)
+
+
+@app.route('/api/add_review', methods=['POST'])
+def api_add_review():
+    try:
+        # Ambil Data
+        data = request.json
+        user_id = data.get('user_id')
+        product_id = data.get('product_id')
+        rating = int(data.get('rating'))
+        
+        if not user_id or not product_id:
+            return api_response('error', 'User ID dan Product ID wajib')
+
+        # 1. Simpan Review ke Collection 'reviews'
+        review_data = {
+            'user_id': user_id,
+            'product_id': product_id,
+            'rating': rating,
+            'created_at': datetime.now().isoformat()
+        }
+        db.collection('reviews').add(review_data)
+
+        # 2. Hitung Rata-rata Rating Baru untuk Produk Tersebut
+        # Ambil semua review untuk produk ini
+        reviews = db.collection('reviews').where('product_id', '==', product_id).stream()
+        
+        total_rating = 0
+        count = 0
+        for r in reviews:
+            rd = r.to_dict()
+            total_rating += rd.get('rating', 0)
+            count += 1
+            
+        new_average = round(total_rating / count, 1) if count > 0 else rating
+
+        # 3. Update Rating di Collection 'products'
+        db.collection('products').document(product_id).update({
+            'rating': new_average
+        })
+
+        return api_response('success', 'Rating berhasil disimpan', {'new_rating': new_average})
+
+    except Exception as e:
+        print(f"Error Review: {e}")
+        return api_response('error', str(e))
 
 @app.route('/edit/<id>', methods=['POST', 'GET'])
 @login_required
@@ -757,18 +826,40 @@ def api_response(status, message, data=None):
     return jsonify({'status': status, 'message': message, 'data': data})
 
 @app.route('/api/products', methods=['GET'])
-def api_products():
+def api_get_products():
     try:
-        products = get_all_collection('products', Product)
-        data = []
-        for p in products:
-            data.append({
-                'id': p.id, 'name': p.name, 'category': p.category.name if p.category else 'Umum',
-                'price': p.price, 'stock': p.stock, 'description': p.description,
-                'image_url': url_for('product_image', id=p.id, _external=True) 
-            })
-        return api_response('success', 'Data produk berhasil', data)
-    except Exception as e: return api_response('error', str(e))
+        # Ambil semua dokumen dari collection 'products' di Firestore
+        docs = db.collection('products').stream()
+        
+        all_products = []
+        for doc in docs:
+            p = doc.to_dict()
+            p['id'] = doc.id
+            # Hapus field base64 yang panjang agar respon JSON ringan
+            # Gambar akan diambil lewat endpoint terpisah
+            if 'image_base64' in p:
+                del p['image_base64'] 
+            all_products.append(p)
+            
+        return api_response('success', 'Data produk ditemukan', all_products)
+    except Exception as e:
+        print(f"Error Products: {e}")
+        return api_response('error', str(e))
+    
+@app.route('/api/product_image/<product_id>')
+def api_product_image(product_id):
+    try:
+        doc = db.collection('products').document(product_id).get()
+        if doc.exists:
+            data = doc.to_dict()
+            if data.get('image_base64'):
+                img_data = base64.b64decode(data['image_base64'])
+                return send_file(BytesIO(img_data), mimetype='image/jpeg')
+    except Exception:
+        pass
+    # Gambar Placeholder jika gagal load
+    return redirect("https://via.placeholder.com/300?text=No+Image")
+
 
 @app.route('/api/banners', methods=['GET'])
 def api_banners():
@@ -783,73 +874,96 @@ def loginpengguna():
         email = data.get('email') 
         password = data.get('password')
         
+        # Cari user berdasarkan email
         docs = db.collection('customers').where('email', '==', email).limit(1).stream()
         user = None
-        for d in docs: user = Customer(d.id, d.to_dict()); break
+        for d in docs: 
+            user = Customer(d.id, d.to_dict())
+            break
         
+        # Cek apakah user ada DAN memiliki field 'password'
         if user and user._data.get('password'):
+            # Bandingkan password input dengan hash di database
             if check_password_hash(user._data['password'], password):
                 return jsonify({
-                    'status': 'success', 'message': 'Login Berhasil',
-                    'data': {'user_id': user.id, 'name': user.name, 'email': user.email, 'points': user.points}
+                    'status': 'success', 
+                    'message': 'Login Berhasil',
+                    'data': {
+                        'id': user.id,  # Sesuaikan dengan Flutter yang baca 'id'
+                        'name': user.name, 
+                        'email': user.email, 
+                        'phone': user.phone,
+                        'role': user._data.get('role', 'Member'),
+                        'points': user.points
+                    }
                 })
+        
         return jsonify({'status': 'error', 'message': 'Email atau password salah'})
-    except Exception as e: return jsonify({'status': 'error', 'message': str(e)})
+    except Exception as e: 
+        return jsonify({'status': 'error', 'message': str(e)})
 
 @app.route('/api/registerpengguna', methods=['POST'])
 def api_register():
     try:
-        # 1. Ambil Data dari Flutter
+        # 1. Ambil Data
         data = request.get_json()
-        if not data:
-            return api_response('error', 'Data tidak boleh kosong')
-
         email = data.get('email')
         password = data.get('password')
         name = data.get('name', 'User Baru')
         phone = data.get('phone', '-')
 
-        # 2. VALIDASI: Cek apakah user sudah ada di Firebase Auth?
+        # Hash Password Wajib
+        hashed_password = generate_password_hash(password)
+        
+        user_uid = None
+        
+        # 2. CEK STATUS USER
         try:
-            # Coba cari user by email
-            user_check = auth.get_user_by_email(email)
-            # Jika baris ini berhasil (tidak error), berarti USER SUDAH ADA.
-            # Maka kita harus MENOLAK registrasi.
-            return api_response('error', 'Email sudah terdaftar. Silakan Login.')
+            # Cek apakah email sudah ada di Firebase Authentication?
+            user_auth = auth.get_user_by_email(email)
+            
+            # === LOGIKA PERBAIKAN (SELF-HEALING) ===
+            # Jika user ada di Auth, kita cek apakah dia punya data di Firestore?
+            doc = db.collection('customers').document(user_auth.uid).get()
+            
+            if doc.exists:
+                # Jika di Auth ADA dan di Firestore ADA = Benar-benar sudah terdaftar
+                return api_response('error', 'Email sudah terdaftar. Silakan Login.')
+            else:
+                # Jika di Auth ADA tapi di Firestore KOSONG (Kasus Anda sekarang)
+                # Kita ambil UID-nya dan LANJUTKAN penyimpanan ke Firestore
+                print(f"RECOVERY: User {email} ditemukan di Auth tapi db kosong. Menyimpan data...")
+                user_uid = user_auth.uid
+                
         except auth.UserNotFoundError:
-            # Jika error "UserNotFoundError", BERARTI AMAN (User belum ada).
-            # Lanjut buat user baru.
-            pass
+            # Jika user BELUM ADA di Auth sama sekali -> Buat Baru
+            new_user = auth.create_user(
+                email=email,
+                password=password,
+                display_name=name
+            )
+            user_uid = new_user.uid
 
-        # 3. Buat User Baru di Authentication
-        user = auth.create_user(
-            email=email,
-            password=password,
-            display_name=name
-        )
-
-        # 4. Simpan Data Profil ke Firestore (Database)
-        # Gunakan UID dari auth sebagai ID dokumen agar sinkron
+        # 3. SIMPAN KE FIRESTORE (Bagian ini sekarang pasti dijalankan)
         user_data = {
-            'id': user.uid, # Simpan ID juga di dalam field
+            'id': user_uid,
             'name': name,
             'email': email,
             'phone': phone,
             'role': 'Member',
-            'points': 0, # Default 0 (Jangan Null)
+            'points': 0,
+            'password': hashed_password, # <--- Kunci Login Sukses
             'created_at': datetime.now().isoformat()
         }
         
-        # .set() akan menimpa/membuat baru dengan rapi
-        db.collection('customers').document(user.uid).set(user_data)
-
-        # 5. Kembalikan Data Asli ke Flutter (Supaya bisa langsung Auto-Login)
+        db.collection('customers').document(user_uid).set(user_data)
+        
         return api_response('success', 'Registrasi Berhasil', user_data)
 
     except Exception as e:
         print(f"Register Error: {e}")
         return api_response('error', f"Gagal Daftar: {str(e)}")
-
+    
 @app.route('/api/vouchers', methods=['GET'])
 def api_vouchers():
     try:
@@ -898,158 +1012,79 @@ def api_rewards():
         return api_response('error', str(e))
 
 # 3. API CEK POIN USER TERBARU
-@app.route('/api/user_points/<uid>', methods=['GET'])
-def api_user_points(uid):
+@app.route('/api/user_points/<user_id>', methods=['GET'])
+def api_user_points(user_id):
     try:
-        # 1. Cari Dokumen User berdasarkan UID
-        doc_ref = db.collection('customers').document(uid)
-        doc = doc_ref.get()
-        
-        points = 0
+        doc = db.collection('customers').document(str(user_id)).get()
         if doc.exists:
-            # 2. Ambil field 'points', default 0 jika belum ada
-            user_data = doc.to_dict()
-            points = user_data.get('points', 0)
-        
-        # 3. Kembalikan data JSON yang benar
-        return api_response('success', 'Data Poin', {'points': points})
-        
+            points = doc.to_dict().get('points', 0)
+            return api_response('success', 'Poin berhasil', {'points': points})
+        return api_response('error', 'User tidak ditemukan')
     except Exception as e:
-        print(f"Error Get Points: {e}")
-        return api_response('error', str(e), {'points': 0})
-
-@app.route('/api/checkout', methods=['POST'])
-def api_checkout():
-    try:
-        data = request.get_json(silent=True)
-        if not data:
-            return api_response('error', 'Data kosong')
-
-        # 1. Ambil Data
-        c_id = data.get('customer_id') 
-        c_name = data.get('customer_name', 'Pelanggan')
-        payment_method = data.get('payment_method', 'Cash')
-        items = data.get('items', [])
-        voucher_code = data.get('voucher_code')
-        final_price = float(data.get('final_price', 0))
-        table_number = data.get('table_number', 'Take Away')
-
-        if not items:
-            return api_response('error', 'Keranjang kosong')
-
-        # 2. Batch Write
-        batch = db.batch()
-        now_time = datetime.now().isoformat()
-        queue_no = str(random.randint(1, 999)).zfill(3)
-        
-        points_earned = int(final_price / EARN_RATE) 
-
-        # --- PERBAIKAN UTAMA DISINI (MENCEGAH ERROR 404) ---
-        # Cek apakah ID valid
-        if c_id and c_id != "Guest" and c_id != "":
-            user_ref = db.collection('customers').document(c_id)
-            user_doc = user_ref.get()
-
-            if user_doc.exists:
-                # Jika User ADA, update (tambah poin)
-                batch.update(user_ref, {'points': firestore.Increment(points_earned)})
-            else:
-                # Jika User TIDAK ADA (404), buat baru (Set)
-                batch.set(user_ref, {
-                    'name': c_name,
-                    'points': points_earned,
-                    'role': 'Member',
-                    'email': '-', # Placeholder
-                    'created_at': now_time
-                })
-        # ---------------------------------------------------
-
-        # 4. Loop Barang & Simpan Transaksi
-        for item in items:
-            pid = str(item['id'])
-            qty = int(item['qty'])
-            
-            # Cek Produk
-            prod_ref = db.collection('products').document(pid)
-            prod_doc = prod_ref.get()
-            
-            # Jika produk dihapus admin, skip agar tidak error 404 produk
-            if not prod_doc.exists: 
-                continue 
-            
-            # Kurangi Stok
-            p_data = prod_doc.to_dict()
-            current_stock = p_data.get('stock', 0)
-            if current_stock < qty:
-                return api_response('error', f"Stok {p_data.get('name')} habis")
-            
-            batch.update(prod_ref, {'stock': current_stock - qty})
-            
-            # Simpan History Transaksi
-            trx_id = generate_id() + str(random.randint(10,99))
-            trx_ref = db.collection('transactions').document(trx_id)
-            
-            batch.set(trx_ref, {
-                'customer_id': c_id,
-                'customer_name': c_name,
-                'product_id': pid,
-                'quantity': qty,
-                'final_price': final_price,
-                'total_price': p_data.get('price', 0) * qty,
-                'payment_method': payment_method,
-                'table_number': table_number,
-                'points_earned': points_earned,
-                'queue_number': queue_no,
-                'date': now_time,
-                'status': 'PAID'
-            })
-
-        batch.commit()
-        
-        return api_response('success', 'Transaksi Berhasil', {
-            'order_id': queue_no,
-            'points': points_earned
-        })
-
-    except Exception as e:
-        print(f"Checkout Error: {e}")
         return api_response('error', str(e))
     
-@app.route('/api/transactions', methods=['GET'])
-def get_transactions():
+# ==========================================
+# 5. API UPDATE PROFIL (Flutter)
+# ==========================================
+@app.route('/api/update_profile', methods=['POST'])
+def api_update_profile():
     try:
-        # Ambil filter nama customer dari URL (opsional)
-        customer_name = request.args.get('customer_name')
-        
-        # Ambil referensi collection
-        docs_ref = db.collection('transactions')
-        
-        # Jika ada filter nama, pakai query
-        # (Catatan: Ini case-sensitive, untuk tes bisa dimatikan dulu if-nya agar muncul semua)
-        if customer_name and customer_name != "Guest":
-            docs = docs_ref.where('customer_name', '==', customer_name).stream()
-        else:
-            # Ambil semua data (limit 50 biar tidak berat)
-            docs = docs_ref.limit(50).stream()
-            
-        history_data = []
-        for doc in docs:
-            t = doc.to_dict()
-            t['id'] = doc.id
-            history_data.append(t)
-            
-        # Urutkan berdasarkan tanggal (Terbaru di atas)
-        # Asumsi format date ISO string
-        try:
-            history_data.sort(key=lambda x: x.get('date', ''), reverse=True)
-        except:
-            pass # Skip jika format tanggal error
+        # 1. Ambil User ID (Wajib)
+        user_id = request.form.get('user_id')
+        if not user_id:
+            return api_response('error', 'User ID tidak ditemukan')
 
-        return api_response('success', 'Data ditemukan', history_data)
+        # 2. Siapkan Data Update Dasar
+        update_data = {
+            'name': request.form.get('name'),
+            'email': request.form.get('email')
+        }
+
+        # 3. Cek Password (Update hanya jika diisi)
+        password = request.form.get('password')
+        if password and len(password) > 0:
+            update_data['password'] = generate_password_hash(password)
+
+        # 4. Handle Upload Gambar (Avatar)
+        file = request.files.get('avatar') # Sesuai key di Flutter
+        if file and file.filename != '':
+            # Konversi gambar ke Base64 string agar bisa disimpan di Firestore
+            img_b64 = base64.b64encode(file.read()).decode('utf-8')
+            update_data['image_base64'] = img_b64
+            update_data['mimetype'] = file.mimetype
+
+        # 5. Eksekusi Update ke Firestore
+        doc_ref = db.collection('customers').document(user_id)
+        
+        # Cek apakah user ada
+        if not doc_ref.get().exists:
+            return api_response('error', 'User tidak ditemukan di database')
+            
+        doc_ref.update(update_data)
+
+        return api_response('success', 'Profil berhasil diperbarui', update_data)
 
     except Exception as e:
-        print(f"Error Get Transactions: {e}")
-        return api_response('error', str(e))
-    
+        print(f"Update Profile Error: {e}")
+        return api_response('error', f"Gagal update: {str(e)}")
+
+# Tambahkan endpoint ini untuk melihat gambar profil (Opsional)
+@app.route('/api/customer_image/<id>')
+def customer_image(id):
+    try:
+        doc = db.collection('customers').document(id).get()
+        if doc.exists:
+            data = doc.to_dict()
+            if data.get('image_base64'):
+                img_data = base64.b64decode(data['image_base64'])
+                return send_file(
+                    BytesIO(img_data), 
+                    mimetype=data.get('mimetype', 'image/jpeg')
+                )
+    except Exception:
+        pass
+    # Redirect ke placeholder jika tidak ada foto
+    return redirect("https://cdn.pixabay.com/photo/2015/10/05/22/37/blank-profile-picture-973460_960_720.png")
+
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5000, debug=True)
