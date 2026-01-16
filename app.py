@@ -1086,5 +1086,48 @@ def customer_image(id):
     # Redirect ke placeholder jika tidak ada foto
     return redirect("https://cdn.pixabay.com/photo/2015/10/05/22/37/blank-profile-picture-973460_960_720.png")
 
+
+@app.route('/api/transaction_history/<user_id>', methods=['GET'])
+def api_transaction_history(user_id):
+    try:
+        # 1. Cari data customer untuk dapatkan Nomor HP
+        customer_doc = db.collection('customers').document(str(user_id)).get()
+        
+        if not customer_doc.exists:
+            return api_response('error', 'User tidak ditemukan')
+            
+        customer_data = customer_doc.to_dict()
+        phone = customer_data.get('phone')
+
+        # 2. Cari transaksi berdasarkan user_id ATAU customer_phone
+        # (Menggunakan logika OR agar lebih aman)
+        transactions = []
+        
+        # Cek by ID
+        docs_by_id = db.collection('transactions').where('user_id', '==', str(user_id)).stream()
+        for d in docs_by_id:
+            t = d.to_dict()
+            t['id'] = d.id
+            transactions.append(t)
+            
+        # Cek by Phone (jika ada phone)
+        if phone:
+            docs_by_phone = db.collection('transactions').where('customer_phone', '==', phone).stream()
+            for d in docs_by_phone:
+                # Hindari duplikasi jika sudah ada
+                if not any(x['id'] == d.id for x in transactions):
+                    t = d.to_dict()
+                    t['id'] = d.id
+                    transactions.append(t)
+
+        # 3. Sort berdasarkan tanggal terbaru
+        transactions.sort(key=lambda x: x.get('date', ''), reverse=True)
+
+        return api_response('success', 'Data riwayat berhasil', transactions)
+
+    except Exception as e:
+        print(f"Error History: {e}")
+        return api_response('error', str(e))
+
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5000, debug=True)
