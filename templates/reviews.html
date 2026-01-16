@@ -1,20 +1,108 @@
 {% extends 'base.html' %}
+
 {% block content %}
-<div class="card p-4 border-0 shadow-sm">
-    <h4 class="fw-bold text-primary mb-4"><i class="fas fa-star me-2"></i>Ulasan Produk</h4>
+<div class="card p-4 border-0 shadow-sm rounded-3">
+    
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h4 class="fw-bold text-primary mb-0">
+            <i class="fas fa-star me-2"></i>Ulasan Produk
+        </h4>
+        <span class="badge bg-primary bg-opacity-10 text-primary px-3 py-2 rounded-pill">
+            Total: {{ reviews|length }} Ulasan
+        </span>
+    </div>
+
     <div class="table-responsive">
         <table class="table table-hover align-middle">
-            <thead class="table-light"><tr><th>Tanggal</th><th>Pelanggan</th><th>Produk</th><th>Rating</th><th>Komentar</th><th>Aksi</th></tr></thead>
-            <tbody>
+            <thead class="bg-light text-secondary text-uppercase small fw-bold">
+                <tr>
+                    <th class="ps-3">Tanggal</th>
+                    <th>Pelanggan</th>
+                    <th>Produk</th>
+                    <th>Rating</th>
+                    <th style="width: 30%;">Komentar</th>
+                    <th class="text-center">Aksi</th>
+                </tr>
+            </thead>
+            <tbody class="border-top-0">
                 {% for r in reviews %}
                 <tr>
-                    <td class="text-muted small">{{ r.created_at.strftime('%d %b %Y') }}</td>
-                    <td class="fw-bold">{{ r.customer.name }}</td><td>{{ r.product.name }}</td>
-                    <td><span class="text-warning">{% for i in range(r.rating) %}<i class="fas fa-star"></i>{% endfor %}</span></td>
-                    <td>{{ r.comment }}</td>
-                    <td><a href="{{ url_for('delete_review', id=r.id) }}" class="btn btn-sm btn-outline-danger" onclick="return confirm('Hapus?')"><i class="fas fa-trash"></i></a></td>
+                    <td class="ps-3 text-muted small">
+                        <i class="far fa-calendar-alt me-1"></i>
+                        {{ r.created_at.strftime('%d/%m/%Y') }}
+                        <br>
+                        <small>{{ r.created_at.strftime('%H:%M') }}</small>
+                    </td>
+
+                    <td>
+                        <div class="d-flex align-items-center">
+                            {% if r.customer_image and r.customer_image|length > 100 %}
+                                <img src="data:image/jpeg;base64,{{ r.customer_image }}" 
+                                     class="rounded-circle shadow-sm border me-2" 
+                                     style="width: 35px; height: 35px; object-fit: cover;">
+                            {% else %}
+                                <div class="rounded-circle bg-light text-secondary d-flex align-items-center justify-content-center me-2 border" 
+                                     style="width: 35px; height: 35px;">
+                                    <i class="fas fa-user small"></i>
+                                </div>
+                            {% endif %}
+                            
+                            <div class="fw-bold text-dark">
+                                {{ r.customer_name or (r.customer.name if r.customer else 'Pelanggan') }}
+                            </div>
+                        </div>
+                    </td>
+
+                    <td>
+                        <div class="d-flex align-items-center">
+                            <div class="bg-light rounded p-1 me-2 border">
+                                <i class="fas fa-box text-muted"></i>
+                            </div>
+                            <span class="fw-bold text-dark" style="font-size: 0.9rem;">
+                                {{ r.product.name if r.product else 'Produk Dihapus' }}
+                            </span>
+                        </div>
+                    </td>
+
+                    <td>
+                        <div class="text-warning small">
+                            {% for i in range(r.rating) %}
+                                <i class="fas fa-star"></i>
+                            {% endfor %}
+                            {% for i in range(5 - r.rating) %}
+                                <i class="far fa-star text-muted opacity-25"></i>
+                            {% endfor %}
+                        </div>
+                        <span class="small fw-bold text-dark">{{ r.rating }}.0</span>
+                    </td>
+
+                    <td>
+                        {% if r.comment %}
+                            <span class="text-muted small fst-italic">"{{ r.comment }}"</span>
+                        {% else %}
+                            <span class="text-muted opacity-50 small">- Tidak ada komentar -</span>
+                        {% endif %}
+                    </td>
+
+                    <td class="text-center">
+                        <a href="{{ url_for('delete_review', id=r.id) }}" 
+                           class="btn btn-sm btn-light text-danger border shadow-sm" 
+                           onclick="return confirm('Yakin ingin menghapus ulasan ini?')"
+                           title="Hapus Ulasan">
+                            <i class="fas fa-trash-alt"></i>
+                        </a>
+                    </td>
                 </tr>
-                {% else %}<tr><td colspan="6" class="text-center py-5">Belum ada ulasan. <a href="/generate_dummy">Klik buat dummy data</a></td></tr>{% endfor %}
+                {% else %}
+                <tr>
+                    <td colspan="6" class="text-center py-5">
+                        <div class="text-muted opacity-50">
+                            <i class="fas fa-comment-slash fa-3x mb-3"></i>
+                            <p>Belum ada ulasan yang masuk.</p>
+                        </div>
+                    </td>
+                </tr>
+                {% endfor %}
             </tbody>
         </table>
     </div>

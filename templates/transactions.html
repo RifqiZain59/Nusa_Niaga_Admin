@@ -127,7 +127,8 @@
                         <th class="text-center">Antrian</th>
                         <th>Pelanggan</th>
                         <th>Produk & Diskon</th>
-                        <th class="text-center">Poin</th> <th class="text-end pe-4">Total Akhir</th>
+                        <th class="text-center">Metode</th> <th class="text-center">Poin</th> 
+                        <th class="text-end pe-4">Total Akhir</th>
                     </tr>
                 </thead>
                 <tbody id="transaction_list">
@@ -162,6 +163,12 @@
                                     </small>
                                 </div>
                             {% endif %}
+                        </td>
+
+                        <td class="text-center">
+                            <span class="badge bg-white text-dark border shadow-sm">
+                                {{ t.payment_method or 'Cash' }}
+                            </span>
                         </td>
 
                         <td class="text-center">

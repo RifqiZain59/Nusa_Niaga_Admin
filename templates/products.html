@@ -1,73 +1,156 @@
 {% extends 'base.html' %}
-{% block content %}
-<div class="card p-4 border-0 shadow-sm">
-    <div class="d-flex justify-content-between align-items-center mb-4">
-        <div>
-            <h4 class="fw-bold text-primary mb-1">Daftar Produk</h4>
-            <p class="text-muted small mb-0">Kelola stok dan harga produk.</p>
-        </div>
-        <a href="{{ url_for('add') }}" class="btn btn-primary shadow-sm">
-            <i class="fas fa-plus me-2"></i>Tambah Produk
-        </a>
-    </div>
 
-    <div class="table-responsive">
-        <table class="table table-hover align-middle table-bordered small">
-            <thead class="bg-light text-center">
-                <tr>
-                    <th style="width: 5%;">ID</th>
-                    <th style="width: 10%;">Foto</th>
-                    <th style="width: 35%;">Nama Produk</th>
-                    <th style="width: 25%;">Harga</th>
-                    <th style="width: 10%;">Stok</th>
-                    <th style="width: 15%;">Aksi</th>
-                </tr>
-            </thead>
-            <tbody>
-                {% for product in products %}
-                <tr>
-                    <td class="text-center fw-bold text-secondary">#{{ product.id }}</td>
-                    <td class="text-center">
-                        <img src="{{ url_for('product_image', id=product.id) }}" 
-                             class="rounded shadow-sm" 
-                             style="width: 50px; height: 50px; object-fit: cover; border: 1px solid #dee2e6;">
-                    </td>
-                    <td>
-                        <span class="fw-bold text-dark d-block">{{ product.name }}</span>
-                        {% if product.category %}
-                            <span class="badge bg-light text-secondary border mt-1">{{ product.category.name }}</span>
-                        {% endif %}
-                    </td>
-                    <td class="text-end fw-bold text-primary fs-6">
-                        Rp {{ "{:,.0f}".format(product.price).replace(',', '.') }}
-                    </td>
-                    <td class="text-center">
-                        {% if product.stock < 5 %}
-                            <span class="badge bg-danger">Sisa {{ product.stock }}</span>
-                        {% else %}
-                            <span class="badge bg-success">{{ product.stock }}</span>
-                        {% endif %}
-                    </td>
-                    <td class="text-center">
-                        <a href="{{ url_for('edit', id=product.id) }}" class="btn btn-sm btn-outline-warning me-1" title="Edit">
-                            <i class="fas fa-edit"></i>
-                        </a>
-                        <a href="{{ url_for('delete', id=product.id) }}" class="btn btn-sm btn-outline-danger" 
-                           onclick="return confirm('Yakin hapus?')" title="Hapus">
-                            <i class="fas fa-trash-alt"></i>
-                        </a>
-                    </td>
-                </tr>
-                {% else %}
-                <tr>
-                    <td colspan="6" class="text-center py-5 text-muted">
-                        <i class="fas fa-box-open fa-3x mb-3 opacity-25"></i><br>
-                        Belum ada data produk.
-                    </td>
-                </tr>
-                {% endfor %}
-            </tbody>
-        </table>
+{% block content %}
+<div class="card border-0 shadow-sm rounded-3">
+    <div class="card-body p-4">
+        
+        <div class="d-flex flex-column flex-md-row justify-content-between align-items-center mb-4 gap-3">
+            <div>
+                <h4 class="fw-bold text-primary mb-1">
+                    <i class="fas fa-boxes me-2"></i>Daftar Produk
+                </h4>
+                <p class="text-muted small mb-0">Kelola stok, harga, dan kategori produk Anda.</p>
+            </div>
+            
+            <div class="d-flex gap-2 w-100 w-md-auto">
+                <div class="input-group">
+                    <span class="input-group-text bg-white border-end-0"><i class="fas fa-search text-muted"></i></span>
+                    <input type="text" id="searchInput" class="form-control border-start-0 ps-0" placeholder="Cari nama produk...">
+                </div>
+
+                <a href="{{ url_for('add') }}" class="btn btn-primary fw-bold shadow-sm d-flex align-items-center text-nowrap">
+                    <i class="fas fa-plus-circle me-2"></i>Tambah
+                </a>
+
+                <div class="dropdown">
+                    <button class="btn btn-light border shadow-sm" type="button" data-bs-toggle="dropdown">
+                        <i class="fas fa-ellipsis-v"></i>
+                    </button>
+                    <ul class="dropdown-menu dropdown-menu-end border-0 shadow">
+                        <li>
+                            <a class="dropdown-item text-danger" href="{{ url_for('reset_products') }}" onclick="return confirm('PERINGATAN: Semua data produk, transaksi, dan review akan dihapus! Lanjutkan?')">
+                                <i class="fas fa-trash-restore me-2"></i>Reset Semua Data
+                            </a>
+                        </li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+
+        <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0" id="productTable">
+                <thead class="bg-light text-secondary text-uppercase small fw-bold">
+                    <tr>
+                        <th style="width: 50px;" class="text-center">Img</th>
+                        <th>Nama Produk</th>
+                        <th>Kategori</th>
+                        <th class="text-end">Harga</th>
+                        <th class="text-center">Stok Real-Time</th>
+                        <th class="text-center" style="width: 120px;">Aksi</th>
+                    </tr>
+                </thead>
+                <tbody class="border-top-0">
+                    {% for product in products %}
+                    <tr class="product-row">
+                        <td class="text-center">
+                            <img src="{{ url_for('product_image', id=product.id) }}?v={{ range(1, 10000) | random }}" 
+                                 class="rounded-3 shadow-sm border" 
+                                 style="width: 45px; height: 45px; object-fit: cover;"
+                                 onerror="this.onerror=null;this.src='https://via.placeholder.com/150?text=No+Img';">
+                        </td>
+                        
+                        <td>
+                            <div class="fw-bold text-dark product-name">{{ product.name }}</div>
+                            <small class="text-muted" style="font-size: 0.75rem;">ID: {{ product.id }}</small>
+                        </td>
+
+                        <td>
+                            {% if product.category %}
+                                <span class="badge bg-info bg-opacity-10 text-info border border-info rounded-pill px-3">
+                                    {{ product.category.name }}
+                                </span>
+                            {% else %}
+                                <span class="text-muted small">-</span>
+                            {% endif %}
+                        </td>
+
+                        <td class="text-end fw-bold text-primary">
+                            Rp {{ "{:,.0f}".format(product.price).replace(',', '.') }}
+                        </td>
+
+                        <td class="text-center">
+                            {% if product.stock <= 5 %}
+                                <span class="badge bg-danger bg-opacity-10 text-danger border border-danger">
+                                    Sisa {{ product.stock }}
+                                </span>
+                            {% else %}
+                                <span class="badge bg-success bg-opacity-10 text-success border border-success">
+                                    {{ product.stock }} Pcs
+                                </span>
+                            {% endif %}
+                        </td>
+
+                        <td class="text-center">
+                            <div class="btn-group" role="group">
+                                <a href="{{ url_for('edit', id=product.id) }}" class="btn btn-sm btn-outline-secondary" title="Edit">
+                                    <i class="fas fa-edit"></i>
+                                </a>
+                                <a href="{{ url_for('delete', id=product.id) }}" class="btn btn-sm btn-outline-danger" 
+                                   onclick="return confirm('Apakah Anda yakin ingin menghapus produk ini?')" title="Hapus">
+                                    <i class="fas fa-trash-alt"></i>
+                                </a>
+                            </div>
+                        </td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="6" class="text-center py-5">
+                            <div class="text-muted opacity-50">
+                                <i class="fas fa-box-open fa-3x mb-3"></i>
+                                <p>Belum ada produk yang ditambahkan.</p>
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        
+        <div id="noResult" class="text-center py-4 d-none text-muted">
+            <i class="fas fa-search mb-2"></i><br>
+            Produk tidak ditemukan.
+        </div>
+
     </div>
 </div>
+
+<script>
+    // Script Pencarian Cepat
+    document.getElementById('searchInput').addEventListener('keyup', function() {
+        let filter = this.value.toLowerCase();
+        let rows = document.querySelectorAll('.product-row');
+        let hasResult = false;
+
+        rows.forEach(function(row) {
+            let name = row.querySelector('.product-name').innerText.toLowerCase();
+            if (name.includes(filter)) {
+                row.style.display = '';
+                hasResult = true;
+            } else {
+                row.style.display = 'none';
+            }
+        });
+
+        let noResultMsg = document.getElementById('noResult');
+        let table = document.getElementById('productTable');
+        
+        if (!hasResult && filter !== '') {
+            noResultMsg.classList.remove('d-none');
+            table.classList.add('d-none');
+        } else {
+            noResultMsg.classList.add('d-none');
+            table.classList.remove('d-none');
+        }
+    });
+</script>
 {% endblock %}

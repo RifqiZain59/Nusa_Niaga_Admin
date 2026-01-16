@@ -3,17 +3,18 @@
 {% block content %}
 
 <style>
+    /* --- PRINT CONFIGURATION --- */
     @media print {
-        /* Sembunyikan elemen navigasi dan tombol aksi */
-        #sidebar-wrapper, .navbar, .btn, .no-print, .alert, .modal, .sidebar-footer, footer {
+        /* Sembunyikan elemen navigasi, tombol, dan dekorasi saat mencetak */
+        #sidebar-wrapper, .navbar, .btn, .no-print, .alert, .modal, .sidebar-footer, footer, .badge-point-action {
             display: none !important;
         }
         
-        /* Atur layout agar memenuhi kertas */
+        /* Reset margin dan padding untuk kertas */
         #page-content-wrapper {
-            margin-left: 0 !important;
-            width: 100% !important;
+            margin: 0 !important;
             padding: 0 !important;
+            width: 100% !important;
         }
 
         .card {
@@ -27,7 +28,7 @@
             display: none !important;
         }
 
-        /* Tampilkan Header Laporan khusus Print */
+        /* Header Laporan khusus Print */
         .print-header {
             display: block !important;
             text-align: center;
@@ -37,13 +38,19 @@
         }
         
         body { 
-            font-size: 11px; 
+            font-size: 12px; 
             background-color: white !important; 
+            font-family: 'Times New Roman', Times, serif;
         }
         
         .table { 
             width: 100% !important; 
-            border: 1px solid #dee2e6 !important;
+            border-collapse: collapse !important;
+        }
+        
+        .table th, .table td {
+            border: 1px solid #000 !important;
+            padding: 5px !important;
         }
     }
 
@@ -98,6 +105,7 @@
                         <a href="{{ url_for('customer_detail', id=c.id) }}" class="fw-bold text-decoration-none text-dark name-cell">
                             {{ c.name }}
                         </a>
+                        <br><small class="text-muted d-print-none">{{ c.email }}</small>
                     </td>
                     <td class="phone-cell">{{ c.phone }}</td>
                     <td class="text-center">
@@ -109,7 +117,7 @@
                         Rp {{ "{:,.0f}".format(c.points * 5000) }}
                     </td>
                     <td class="text-center no-print">
-                        <button type="button" class="btn btn-sm btn-primary shadow-sm px-3" 
+                        <button type="button" class="btn btn-sm btn-primary shadow-sm px-3 badge-point-action" 
                                 onclick="openCatalogModal(this)" 
                                 data-id="{{ c.id }}" 
                                 data-name="{{ c.name }}" 
@@ -143,7 +151,7 @@
                 <tr class="history-row">
                     <td class="hist-date text-muted">{{ log.date.strftime('%d %b %Y, %H:%M') }}</td>
                     <td class="fw-bold hist-name">{{ log.customer.name }}</td>
-                    <td class="text-danger fw-bold hist-points">-{{ log.points_spent }}</td>
+                    <td class="text-danger fw-bold hist-points text-center">-{{ log.points_spent }}</td>
                     <td class="text-primary hist-desc">{{ log.description }}</td>
                 </tr>
                 {% else %}
@@ -182,51 +190,61 @@
                             <div class="row g-2">
                                 <div class="col-6">
                                     <input type="radio" class="btn-check" name="selected_item" id="item1" onclick="selectItem(10, 'Mug Cantik')">
-                                    <label class="btn btn-outline-light text-dark border w-100 p-3 text-start h-100" for="item1">
+                                    <label class="btn btn-outline-light text-dark border w-100 p-3 text-start h-100 position-relative" for="item1">
                                         Mug Cantik<br><b class="text-primary">10 Poin</b>
                                     </label>
                                 </div>
                                 <div class="col-6">
                                     <input type="radio" class="btn-check" name="selected_item" id="item2" onclick="selectItem(20, 'Payung Lipat')">
-                                    <label class="btn btn-outline-light text-dark border w-100 p-3 text-start h-100" for="item2">
+                                    <label class="btn btn-outline-light text-dark border w-100 p-3 text-start h-100 position-relative" for="item2">
                                         Payung Lipat<br><b class="text-primary">20 Poin</b>
                                     </label>
                                 </div>
                                 <div class="col-6">
                                     <input type="radio" class="btn-check" name="selected_item" id="item3" onclick="selectItem(30, 'Kaos Exclusive')">
-                                    <label class="btn btn-outline-light text-dark border w-100 p-3 text-start h-100" for="item3">
+                                    <label class="btn btn-outline-light text-dark border w-100 p-3 text-start h-100 position-relative" for="item3">
                                         Kaos Exclusive<br><b class="text-primary">30 Poin</b>
                                     </label>
                                 </div>
                                 <div class="col-6">
                                     <input type="radio" class="btn-check" name="selected_item" id="item4" onclick="selectItem(50, 'Voucher 250rb')">
-                                    <label class="btn btn-outline-light text-dark border w-100 p-3 text-start h-100" for="item4">
+                                    <label class="btn btn-outline-light text-dark border w-100 p-3 text-start h-100 position-relative" for="item4">
                                         Voucher Belanja<br><b class="text-primary">50 Poin</b>
                                     </label>
                                 </div>
                             </div>
                         </div>
 
-                        <div class="col-md-5 text-center">
+                        <div class="col-md-5 text-center d-flex flex-column justify-content-center">
                             <input type="hidden" name="points_to_redeem" id="final_points">
                             <input type="hidden" name="description" id="final_desc">
                             
                             <div id="qr_placeholder" class="py-5 text-muted fst-italic">
-                                <i class="fas fa-hand-pointer mb-2 d-block fa-2x"></i>
-                                Silakan pilih hadiah di samping
+                                <i class="fas fa-hand-pointer mb-3 d-block fa-3x text-light bg-secondary rounded-circle p-3 mx-auto" style="width: 80px; height: 80px;"></i>
+                                <span class="d-block mt-2">Silakan pilih hadiah di samping untuk melanjutkan.</span>
                             </div>
 
                             <div id="qr_result" style="display: none;">
-                                <div class="small mb-2 fw-bold">Scan QR untuk Konfirmasi</div>
-                                <img id="qr_image" src="" width="160" class="mb-3 border p-2 bg-white rounded">
-                                <div class="card bg-light border-0 p-2 mb-3 text-start">
-                                    <div class="small text-muted">Item: <b id="summary_item" class="text-dark"></b></div>
-                                    <div class="small text-muted">Poin: <b id="summary_points" class="text-danger"></b></div>
+                                <div class="small mb-2 fw-bold text-uppercase text-muted">Scan QR Code</div>
+                                
+                                <img id="qr_image" src="" width="160" height="160" class="mb-3 border p-2 bg-white rounded shadow-sm" alt="QR Code">
+                                
+                                <div class="card bg-light border-0 p-3 mb-3 text-start shadow-sm">
+                                    <div class="d-flex justify-content-between mb-1">
+                                        <span class="small text-muted">Item:</span>
+                                        <b id="summary_item" class="text-dark text-end"></b>
+                                    </div>
+                                    <div class="d-flex justify-content-between">
+                                        <span class="small text-muted">Total Poin:</span>
+                                        <b id="summary_points" class="text-danger text-end"></b>
+                                    </div>
                                 </div>
-                                <button type="submit" class="btn btn-success w-100 fw-bold py-2 shadow-sm">
-                                    PROSES PENUKARAN
-                                </button>
-                            </div>
+                                
+                                <div class="alert alert-warning py-2 small border-0 text-center mb-0">
+                                    <i class="fas fa-sync-alt me-1"></i> QR berubah tiap 20 menit.
+                                </div>
+                                
+                                </div>
                         </div>
                     </div>
                 </div>
@@ -236,7 +254,7 @@
 </div>
 
 <script>
-    // 1. LOGIKA CETAK LAPORAN (PDF)
+    // --- 1. LOGIKA CETAK LAPORAN (PDF) ---
     function printLaporan() {
         const today = new Date();
         const options = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' };
@@ -244,79 +262,148 @@
         window.print();
     }
 
-    // 2. LOGIKA KIRIM LAPORAN VIA WHATSAPP
+    // --- 2. LOGIKA KIRIM LAPORAN VIA WHATSAPP ---
     function shareToWhatsApp() {
-        // Hitung Total Poin Member
         let custRows = document.querySelectorAll('.customer-row');
         let totalPoints = 0;
+        let memberCount = 0;
+
         custRows.forEach(row => {
-            totalPoints += parseInt(row.querySelector('.point-cell').getAttribute('data-points')) || 0;
+            if(row.style.display !== 'none') {
+                totalPoints += parseInt(row.querySelector('.point-cell').getAttribute('data-points')) || 0;
+                memberCount++;
+            }
         });
 
-        // Ambil 3 Riwayat Penukaran Terakhir
         let histRows = document.querySelectorAll('.history-row');
         let histSummary = "";
-        histRows.forEach((row, index) => {
-            if(index < 3) {
+        
+        for(let i = 0; i < Math.min(histRows.length, 3); i++) {
+            let row = histRows[i];
+            if (row.querySelector('.hist-name')) { 
                 let name = row.querySelector('.hist-name').innerText;
                 let item = row.querySelector('.hist-desc').innerText;
                 let pts = row.querySelector('.hist-points').innerText;
                 histSummary += `• ${name}: ${item} (${pts})\n`;
             }
-        });
+        }
 
-        // Susun Pesan
         let message = `*LAPORAN LOYALTY NUSA NIAGA*\n\n`;
-        message += `👥 Total Member: *${custRows.length}*\n`;
+        message += `📅 Tanggal: ${new Date().toLocaleDateString('id-ID')}\n`;
+        message += `👥 Total Member: *${memberCount}*\n`;
         message += `💎 Total Poin Aktif: *${totalPoints} Poin*\n`;
-        message += `💰 Estimasi Dana: *Rp ${new Intl.NumberFormat('id-ID').format(totalPoints * 5000)}*\n\n`;
+        message += `💰 Valuasi Poin: *Rp ${new Intl.NumberFormat('id-ID').format(totalPoints * 5000)}*\n\n`;
         
         if(histSummary) {
-            message += `*🔄 Penukaran Poin Terakhir:*\n${histSummary}`;
+            message += `*🔄 Riwayat Penukaran Terakhir:*\n${histSummary}`;
+        } else {
+            message += `*🔄 Riwayat Penukaran Terakhir:*\nBelum ada data.\n`;
         }
         
-        message += `\n_Dicetak secara sistem: ${new Date().toLocaleString('id-ID')}_`;
-
-        // Buka WhatsApp
+        message += `\n_Dikirim otomatis dari Sistem POS Nusa Niaga_`;
         window.open(`https://wa.me/?text=${encodeURIComponent(message)}`, '_blank');
     }
 
-    // 3. LOGIKA REDEEM & MODAL
+    // --- 3. LOGIKA REDEEM & DYNAMIC QR ---
     let currentCustomerPoints = 0;
+    let qrIntervalId = null; // Menyimpan ID interval untuk auto-refresh
+    let currentSelectedItem = { pts: 0, name: '' }; // Menyimpan pilihan item saat ini
 
     function openCatalogModal(btn) {
-        document.getElementById('modal_customer_id').value = btn.dataset.id;
-        document.getElementById('modal_customer_name').innerText = btn.dataset.name;
-        document.getElementById('modal_current_points').innerText = btn.dataset.points;
-        currentCustomerPoints = parseInt(btn.dataset.points);
+        let custId = btn.dataset.id;
+        let custName = btn.dataset.name;
+        let custPoints = parseInt(btn.dataset.points);
+
+        document.getElementById('modal_customer_id').value = custId;
+        document.getElementById('modal_customer_name').innerText = custName;
+        document.getElementById('modal_current_points').innerText = custPoints;
         
-        // Reset modal state
+        currentCustomerPoints = custPoints;
+        
+        // Reset Tampilan ke awal (Placeholder)
         document.getElementById('qr_placeholder').style.display = 'block';
         document.getElementById('qr_result').style.display = 'none';
+        
+        // Bersihkan interval yang mungkin masih berjalan dari sesi sebelumnya
+        if (qrIntervalId) clearInterval(qrIntervalId);
+
+        // Reset radio button
         let radios = document.getElementsByName('selected_item');
         radios.forEach(r => r.checked = false);
 
+        // Tampilkan Modal
         new bootstrap.Modal(document.getElementById('redeemModal')).show();
     }
 
+    // Saat modal ditutup total, matikan interval agar tidak memakan memori browser
+    document.getElementById('redeemModal').addEventListener('hidden.bs.modal', function () {
+        if (qrIntervalId) clearInterval(qrIntervalId);
+    });
+
     function selectItem(pts, name) {
+        // Validasi Kecukupan Poin
         if(pts > currentCustomerPoints) { 
-            alert("Poin pelanggan tidak cukup!"); 
-            event.target.checked = false;
+            alert(`Maaf, poin pelanggan tidak cukup!\nButuh: ${pts}, Punya: ${currentCustomerPoints}`);
+            setTimeout(() => {
+                event.target.checked = false; 
+                document.getElementById('qr_placeholder').style.display = 'block';
+                document.getElementById('qr_result').style.display = 'none';
+            }, 100);
             return; 
         }
 
+        // Simpan data item yang dipilih
+        currentSelectedItem = { pts: pts, name: name };
+
+        // Update Form Hidden Input & UI Teks
         document.getElementById('final_points').value = pts;
         document.getElementById('final_desc').value = name;
         document.getElementById('summary_item').innerText = name;
         document.getElementById('summary_points').innerText = pts + " Poin";
         
+        // Tampilkan area QR
         document.getElementById('qr_placeholder').style.display = 'none';
         document.getElementById('qr_result').style.display = 'block';
 
-        // QR Code untuk visualisasi
-        const qrContent = `REDEEM|${document.getElementById('modal_customer_name').innerText}|${name}|${pts}`;
-        document.getElementById('qr_image').src = `https://api.qrserver.com/v1/create-qr-code/?size=160x160&data=${encodeURIComponent(qrContent)}`;
+        // 1. Generate QR saat ini juga
+        generateDynamicQR();
+
+        // 2. Set interval pengecekan setiap 1 menit (60000ms)
+        // Interval ini akan memanggil generateDynamicQR()
+        // Fungsi tsb akan mengecek apakah sudah lewat blok 20 menit atau belum.
+        if (qrIntervalId) clearInterval(qrIntervalId);
+        qrIntervalId = setInterval(generateDynamicQR, 60000); 
+    }
+
+    function generateDynamicQR() {
+        const pts = currentSelectedItem.pts;
+        const name = currentSelectedItem.name;
+        const customerName = document.getElementById('modal_customer_name').innerText;
+
+        // --- LOGIKA ROTASI 20 MENIT ---
+        // Date.now() = milidetik sejak 1970
+        // 20 menit = 20 * 60 * 1000 = 1.200.000 ms
+        // Pembagian dengan Math.floor menghasilkan angka yang sama (timeBlock) selama 20 menit berjalan.
+        const timeBlock = Math.floor(Date.now() / (1000 * 60 * 20));
+
+        // Format String QR: REDEEM|Nama|Item|Poin|TimeBlock
+        // TimeBlock disematkan agar isi QR berubah setiap siklus 20 menit
+        const qrData = `REDEEM|${customerName}|${name}|${pts}|${timeBlock}`;
+        
+        // URL API QR Code (Tanpa parameter color = Hitam Putih)
+        const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=160x160&data=${encodeURIComponent(qrData)}`;
+        
+        let imgObj = document.getElementById('qr_image');
+        
+        // Cek apakah URL berubah (artinya blok 20 menit sudah berganti)
+        // Jika sama, tidak perlu refresh gambar agar tidak kedip
+        if (imgObj.src !== qrUrl) {
+            imgObj.style.opacity = '0.5'; // Efek loading visual
+            imgObj.src = qrUrl;
+            imgObj.onload = function() {
+                this.style.opacity = '1';
+            };
+        }
     }
 </script>
 
