@@ -1,30 +1,199 @@
 {% extends 'base.html' %}
+
 {% block content %}
-<div class="row">
-    <div class="col-md-4 mb-4">
-        <div class="card p-4 h-100 shadow-sm border-0">
-            <h5 class="fw-bold text-primary mb-3">Tambah Kategori</h5>
-            <form action="{{ url_for('categories') }}" method="POST">
-                <div class="mb-3"><input type="text" name="name" class="form-control" placeholder="Nama Kategori..." required></div>
-                <button type="submit" class="btn btn-primary w-100">Simpan</button>
-            </form>
+<style>
+    @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap');
+    
+    body {
+        background-color: #f3f4f6;
+        font-family: 'Plus Jakarta Sans', sans-serif;
+        color: #1f2937;
+    }
+
+    /* Card Styling */
+    .card-premium {
+        background: white;
+        border: 1px solid #e5e7eb;
+        box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06);
+        border-radius: 16px;
+        overflow: hidden;
+    }
+
+    /* Stat Card (Kotak Total) - Updated */
+    .stat-card {
+        background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%); /* Indigo to Violet Gradient */
+        color: white;
+        border: none;
+        position: relative;
+        overflow: hidden;
+        /* Dihapus: .stat-card::after yang lama */
+    }
+
+    /* Style Baru untuk Ikon Transparan Melayang */
+    .icon-watermark {
+        position: absolute;
+        bottom: -15px;     /* Posisi di bawah */
+        right: -15px;      /* Posisi di kanan */
+        font-size: 6rem;   /* Ukuran sangat besar */
+        color: white;
+        opacity: 0.15;     /* Sangat transparan (15%) */
+        transform: rotate(-15deg); /* Miring sedikit agar artistik */
+        pointer-events: none;      /* Agar tidak mengganggu klik */
+        z-index: 0;                /* Di belakang teks */
+    }
+
+    /* Input Styling */
+    .form-control-clean {
+        background-color: #f9fafb;
+        border: 1px solid #e5e7eb;
+        padding: 0.75rem 1rem;
+        font-size: 0.875rem;
+        border-radius: 8px;
+        transition: all 0.2s;
+    }
+    .form-control-clean:focus {
+        background-color: white;
+        border-color: #6366f1;
+        box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
+        outline: none;
+    }
+
+    /* Button Styling */
+    .btn-indigo {
+        background-color: #4f46e5;
+        color: white;
+        font-weight: 600;
+        padding: 0.75rem 1rem;
+        border-radius: 8px;
+        border: none;
+        transition: all 0.2s;
+    }
+    .btn-indigo:hover {
+        background-color: #4338ca;
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(79, 70, 229, 0.3);
+    }
+
+    /* Table Styling */
+    .table-header {
+        background-color: #f9fafb;
+        border-bottom: 1px solid #e5e7eb;
+        font-size: 0.75rem;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        color: #6b7280;
+        font-weight: 600;
+    }
+    .table-row { border-bottom: 1px solid #f3f4f6; transition: background-color 0.15s; }
+    .table-row:last-child { border-bottom: none; }
+    .table-row:hover { background-color: #f8fafc; }
+    .table-row td { padding: 1rem 1.5rem; vertical-align: middle; }
+
+    /* Delete Button */
+    .btn-icon-danger {
+        color: #ef4444; background: transparent; border: 1px solid #fee2e2;
+        border-radius: 8px; width: 34px; height: 34px;
+        display: flex; align-items: center; justify-content: center; transition: all 0.2s;
+    }
+    .btn-icon-danger:hover { background-color: #fee2e2; color: #dc2626; transform: scale(1.05); }
+</style>
+
+<div class="container py-5" style="max-width: 1100px;">
+    
+    <div class="mb-4 d-flex align-items-center justify-content-between">
+        <div>
+            <h3 class="fw-bold text-dark mb-1" style="letter-spacing: -0.5px;">Kategori Produk</h3>
+            <p class="text-muted small mb-0">Kelola master data kategori untuk pengelompokan item.</p>
         </div>
     </div>
-    <div class="col-md-8">
-        <div class="card p-4 border-0 shadow-sm">
-            <h5 class="fw-bold mb-3">Daftar Kategori</h5>
-            <table class="table table-hover">
-                <thead class="table-light"><tr><th>ID</th><th>Nama</th><th class="text-end">Aksi</th></tr></thead>
-                <tbody>
-                    {% for cat in categories %}
-                    <tr>
-                        <td>{{ cat.id }}</td>
-                        <td class="fw-bold">{{ cat.name }}</td>
-                        <td class="text-end"><a href="{{ url_for('delete_category', id=cat.id) }}" class="btn btn-sm btn-outline-danger" onclick="return confirm('Hapus?')"><i class="fas fa-trash"></i></a></td>
-                    </tr>
-                    {% else %}<tr><td colspan="3" class="text-center">Kosong</td></tr>{% endfor %}
-                </tbody>
-            </table>
+
+    <div class="row g-4">
+        <div class="col-md-4">
+            <div class="card-premium p-4 sticky-top" style="top: 2rem; z-index: 1;">
+                <div class="d-flex align-items-center mb-4">
+                    <div class="d-flex align-items-center justify-content-center rounded-3 bg-indigo-soft me-3" style="width: 44px; height: 44px; background-color: #e0e7ff; color: #4f46e5;">
+                        <i class="fas fa-plus"></i>
+                    </div>
+                    <div>
+                        <h6 class="fw-bold mb-0 text-dark">Tambah Baru</h6>
+                        <small class="text-muted">Input kategori ke database</small>
+                    </div>
+                </div>
+
+                <form action="{{ url_for('categories') }}" method="POST" autocomplete="off">
+                    <div class="mb-4">
+                        <label class="form-label text-secondary small fw-bold mb-2 text-uppercase" style="font-size: 0.7rem;">Nama Kategori</label>
+                        <input type="text" name="name" class="form-control form-control-clean" placeholder="Misal: Fashion, Elektronik..." required>
+                    </div>
+                    <button type="submit" class="btn btn-indigo w-100 d-flex align-items-center justify-content-center gap-2">
+                        <i class="fas fa-save"></i> Simpan Data
+                    </button>
+                </form>
+            </div>
+        </div>
+
+        <div class="col-md-8">
+            
+            <div class="card-premium stat-card p-4 mb-4">
+                <div class="position-relative" style="z-index: 2;">
+                    <h6 class="mb-1 text-white opacity-75 text-uppercase fw-bold" style="font-size: 0.75rem; letter-spacing: 1px;">Total Kategori</h6>
+                    <h2 class="mb-0 fw-bold display-4">{{ categories|length }}</h2>
+                    <span class="small text-white opacity-75">Kategori aktif saat ini</span>
+                </div>
+                <i class="fas fa-layer-group icon-watermark"></i>
+            </div>
+
+            <div class="card-premium">
+                <div class="d-flex justify-content-between align-items-center px-4 py-3 border-bottom bg-white">
+                    <h6 class="fw-bold m-0 text-dark">Daftar Kategori</h6>
+                    <a href="{{ url_for('categories') }}" class="text-muted"><i class="fas fa-sync-alt small hover-rotate"></i></a>
+                </div>
+
+                <div class="table-responsive">
+                    <table class="table mb-0 w-100">
+                        <thead class="table-header">
+                            <tr>
+                                <th class="ps-4" style="width: 80px;">ID</th>
+                                <th>Nama Kategori</th>
+                                <th class="text-end pe-4" style="width: 100px;">Aksi</th>
+                            </tr>
+                        </thead>
+                        <tbody class="bg-white">
+                            {% for cat in categories %}
+                            <tr class="table-row">
+                                <td class="ps-4">
+                                    <span class="font-monospace text-secondary fw-bold small bg-light px-2 py-1 rounded border">
+                                        {{ cat.id }}
+                                    </span>
+                                </td>
+                                <td>
+                                    <span class="fw-bold text-dark">{{ cat.name }}</span>
+                                </td>
+                                <td class="text-end pe-4">
+                                    <div class="d-flex justify-content-end">
+                                        <a href="{{ url_for('delete_category', id=cat.id) }}" 
+                                           class="btn-icon-danger" 
+                                           onclick="return confirm('Yakin hapus kategori {{ cat.name }}? Data produk terkait mungkin akan terpengaruh.')"
+                                           title="Hapus">
+                                            <i class="fas fa-trash-alt small"></i>
+                                        </a>
+                                    </div>
+                                </td>
+                            </tr>
+                            {% else %}
+                            <tr>
+                                <td colspan="3" class="text-center py-5">
+                                    <div class="py-3 opacity-50">
+                                        <i class="fas fa-folder-open fa-3x text-secondary mb-3"></i>
+                                        <h6 class="fw-bold text-secondary">Data Kosong</h6>
+                                    </div>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
         </div>
     </div>
 </div>

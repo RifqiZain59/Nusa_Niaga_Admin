@@ -257,6 +257,7 @@ def login():
             user_obj = User(user_id, user_data)
             if user_obj.check_password(password):
                 login_user(user_obj)
+                # Redirect ke index (yang sekarang diarahkan ke dashboard)
                 return redirect(url_for('index'))
         flash("Username atau password salah.", "danger")
     return render_template('login.html')
@@ -290,7 +291,16 @@ def register():
 @login_required
 def logout(): logout_user(); return redirect(url_for('login'))
 
+# --- [UBAH DISINI] Route Landing Page (Public) ---
 @app.route('/')
+def landing_page():
+    # Opsional: Redirect ke dashboard jika sudah login
+    if current_user.is_authenticated:
+        return redirect(url_for('index'))
+    return render_template('landing.html')
+
+# --- [UBAH DISINI] Dashboard dipindah ke /dashboard ---
+@app.route('/dashboard')
 @login_required
 def index():
     products = get_all_collection('products', Product)
@@ -802,63 +812,6 @@ def add_transaction():
             return redirect(url_for('add_transaction'))
             
     return render_template('add_transaction.html', products=products, categories=categories)
-
-# --- BAGIAN BANNERS ---
-@app.route('/banners')
-@login_required
-def banners():
-    docs = db.collection('banners').stream()
-    banners = [FirestoreModel(d.id, d.to_dict()) for d in docs]
-    return render_template('banners.html', banners=banners)
-
-@app.route('/add_banner', methods=['POST'])
-@login_required
-def add_banner():
-    file = request.files['image']
-    if file:
-        img_b64 = base64.b64encode(file.read()).decode('utf-8')
-        b_id = generate_id()
-        db.collection('banners').document(b_id).set({
-            'title': request.form.get('title'), 
-            'image_base64': img_b64, 'mimetype': file.mimetype, 'is_active': True
-        })
-        flash("Banner ditambahkan.", "success")
-    else: flash("File gambar wajib diisi.", "danger")
-    return redirect(url_for('banners'))
-
-@app.route('/edit_banner', methods=['POST'])
-@login_required
-def edit_banner():
-    try:
-        b_id = request.form.get('banner_id')
-        data = {
-            'title': request.form.get('title'),
-            'is_active': True if request.form.get('is_active') else False
-        }
-        file = request.files.get('image')
-        if file and file.filename != '':
-            data['image_base64'] = base64.b64encode(file.read()).decode('utf-8')
-            data['mimetype'] = file.mimetype
-        db.collection('banners').document(b_id).update(data)
-        flash("Banner diperbarui.", "success")
-    except Exception as e: flash(f"Gagal: {e}", "danger")
-    return redirect(url_for('banners'))
-
-@app.route('/delete_banner/<id>')
-@login_required
-def delete_banner(id):
-    db.collection('banners').document(id).delete()
-    return redirect(url_for('banners'))
-
-@app.route('/banner_image/<id>')
-def banner_image(id):
-    doc = db.collection('banners').document(id).get()
-    if doc.exists:
-        data = doc.to_dict()
-        if data.get('image_base64'):
-            img_data = base64.b64decode(data['image_base64'])
-            return send_file(BytesIO(img_data), mimetype=data.get('mimetype', 'image/jpeg'))
-    return redirect("https://via.placeholder.com/300x150")
 
 @app.route('/analytics')
 @login_required

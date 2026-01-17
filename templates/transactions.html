@@ -2,52 +2,88 @@
 
 {% block content %}
 <style>
-    /* STYLE UNTUK MODE CETAK (PDF/EXPORT) */
-    @media print {
-        #sidebar-wrapper, .navbar, .btn, .no-print, footer, .alert { 
-            display: none !important; 
-        }
-        #page-content-wrapper { 
-            margin: 0 !important; 
-            width: 100% !important; 
-            padding: 0 !important; 
-        }
-        .card { 
-            border: none !important; 
-            box-shadow: none !important; 
-        }
-        
-        /* Munculkan Header Laporan */
-        .print-header { 
-            display: block !important; 
-            text-align: center; 
-            border-bottom: 2px solid #000; 
-            padding-bottom: 10px; 
-            margin-bottom: 20px; 
-        }
-
-        /* Munculkan Kotak Ringkasan saat Cetak */
-        .print-summary {
-            display: flex !important;
-            justify-content: space-around;
-            margin-bottom: 20px;
-            padding: 15px;
-            border: 1px solid #ddd;
-            border-radius: 10px;
-        }
+    /* === FONT & BASE === */
+    @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap');
+    
+    body {
+        font-family: 'Plus Jakarta Sans', sans-serif;
+        background-color: #f3f4f6;
     }
 
-    /* Sembunyikan elemen laporan di layar browser */
-    .print-header, .print-summary { display: none; }
-    
-    .row-discount { background-color: rgba(255, 193, 7, 0.05) !important; }
-    
-    .stats-card {
-        background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
+    /* === STATS CARDS === */
+    .stats-card-primary {
+        background: linear-gradient(135deg, #0d6efd 0%, #0043a8 100%);
         color: white;
-        border-radius: 15px;
         border: none;
+        border-radius: 16px;
+        position: relative;
+        overflow: hidden;
+        box-shadow: 0 10px 25px rgba(13, 110, 253, 0.25);
+        transition: transform 0.3s ease;
     }
+    .stats-card-white {
+        background: #fff;
+        border: 1px solid #e5e7eb;
+        border-radius: 16px;
+        position: relative;
+        overflow: hidden;
+        box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05);
+        transition: transform 0.3s ease;
+    }
+    .stats-card-primary:hover, .stats-card-white:hover { transform: translateY(-5px); }
+
+    /* Icons */
+    .icon-bg-watermark {
+        position: absolute; right: -20px; bottom: -25px;
+        font-size: 7rem; opacity: 0.1; transform: rotate(-15deg); pointer-events: none;
+    }
+    .icon-glass {
+        width: 48px; height: 48px; display: flex; align-items: center; justify-content: center;
+        border-radius: 12px; backdrop-filter: blur(8px); font-size: 1.25rem;
+    }
+    .glass-light { background: rgba(255, 255, 255, 0.2); color: white; border: 1px solid rgba(255, 255, 255, 0.3); }
+    .glass-primary { background: #eff6ff; color: #0d6efd; border: 1px solid #dbeafe; }
+
+    /* === SEARCH BAR MODERN === */
+    .search-input {
+        background-color: #f9fafb;
+        border: 1px solid #e5e7eb;
+        color: #374151;
+        font-size: 0.875rem;
+        padding-left: 2.5rem; /* Ruang untuk ikon */
+        transition: all 0.2s;
+        border-radius: 10px;
+    }
+    .search-input:focus {
+        background-color: white;
+        border-color: #0d6efd;
+        box-shadow: 0 0 0 4px rgba(13, 110, 253, 0.1);
+    }
+    .search-icon {
+        position: absolute;
+        left: 1rem;
+        top: 50%;
+        transform: translateY(-50%);
+        color: #9ca3af;
+        pointer-events: none;
+        font-size: 0.9rem;
+    }
+
+    /* === TABLE === */
+    .table-hover tbody tr:hover { background-color: #f8fafc; }
+    .row-discount { background-color: #fffbeb !important; }
+
+    /* === PRINT === */
+    @media print {
+        #sidebar-wrapper, .navbar, .btn, .no-print, footer, .alert { display: none !important; }
+        #page-content-wrapper { margin: 0 !important; width: 100% !important; padding: 0 !important; }
+        .card { border: none !important; box-shadow: none !important; }
+        .print-header { display: block !important; text-align: center; border-bottom: 2px solid #000; padding-bottom: 10px; margin-bottom: 20px; }
+        .print-summary { display: flex !important; justify-content: space-around; margin-bottom: 20px; padding: 15px; border: 1px solid #ddd; border-radius: 10px; }
+        .stats-card-primary, .stats-card-white { box-shadow: none !important; border: 1px solid #ddd !important; color: black !important; background: white !important; }
+        .icon-bg-watermark { display: none !important; }
+    }
+    .print-header, .print-summary { display: none; }
 </style>
 
 <div class="print-header">
@@ -66,149 +102,231 @@
     </div>
 </div>
 
-<div class="d-flex justify-content-between align-items-start mb-4 no-print">
+<div class="d-flex justify-content-between align-items-end mb-4 no-print">
     <div>
-        <h4 class="fw-bold text-primary mb-1">Riwayat Transaksi</h4>
-        <p class="text-muted small mb-0">Kelola penjualan dan pantau performa omzet toko.</p>
+        <h4 class="fw-bold text-dark mb-1">Riwayat Transaksi</h4>
+        <p class="text-muted small mb-0">Pantau performa penjualan toko Anda.</p>
     </div>
-    
     <div class="d-flex gap-2">
-        <a href="{{ url_for('add_transaction') }}" class="btn btn-primary px-4 fw-bold shadow-sm">
-            <i class="fas fa-plus-circle me-2"></i>Transaksi Baru
-        </a>
         <div class="dropdown">
-            <button class="btn btn-outline-secondary dropdown-toggle shadow-sm" type="button" data-bs-toggle="dropdown">
-                <i class="fas fa-download me-1"></i> Ekspor
+            <button class="btn btn-white bg-white text-secondary border dropdown-toggle shadow-sm rounded-3 px-3" type="button" data-bs-toggle="dropdown">
+                <i class="fas fa-file-export me-1"></i> Ekspor
             </button>
-            <ul class="dropdown-menu dropdown-menu-end shadow border-0">
-                <li><a class="dropdown-item text-success" href="javascript:void(0)" onclick="shareWA()"><i class="fab fa-whatsapp me-2"></i>WA Laporan</a></li>
-                <li><a class="dropdown-item text-danger" href="javascript:void(0)" onclick="handlePrint()"><i class="fas fa-file-pdf me-2"></i>Cetak PDF</a></li>
+            <ul class="dropdown-menu dropdown-menu-end shadow-lg border-0 rounded-3 mt-2">
+                <li><a class="dropdown-item py-2" href="javascript:void(0)" onclick="shareWA()"><i class="fab fa-whatsapp me-2 text-success"></i>Kirim WA</a></li>
+                <li><a class="dropdown-item py-2" href="javascript:void(0)" onclick="handlePrint()"><i class="fas fa-print me-2 text-dark"></i>Cetak</a></li>
             </ul>
         </div>
+        <a href="{{ url_for('add_transaction') }}" class="btn btn-primary px-4 fw-bold shadow-primary rounded-3">
+            <i class="fas fa-plus me-2"></i>Baru
+        </a>
     </div>
 </div>
 
-<div class="row mb-4 no-print">
-    <div class="col-md-4">
-        <div class="card stats-card shadow-sm h-100">
-            <div class="card-body p-4">
-                <div class="d-flex justify-content-between align-items-center">
-                    <div>
-                        <h6 class="text-white-50 small fw-bold text-uppercase mb-1">Total Omzet</h6>
-                        <h3 class="fw-bold mb-0" id="total_omzet_display">Rp 0</h3>
-                    </div>
-                    <i class="fas fa-money-bill-wave fa-2x text-white bg-white bg-opacity-20 p-3 rounded-circle"></i>
+<div class="row g-4 mb-4 no-print">
+    <div class="col-md-6 col-lg-4">
+        <div class="card stats-card-primary h-100">
+            <div class="card-body p-4 d-flex flex-column justify-content-between position-relative z-1">
+                <div class="d-flex justify-content-between align-items-start mb-3">
+                    <div class="icon-glass glass-light"><i class="fas fa-wallet"></i></div>
+                    <span class="badge bg-white bg-opacity-25 rounded-pill fw-normal small">Hari Ini</span>
+                </div>
+                <div>
+                    <h6 class="text-white-50 text-uppercase fw-bold small mb-1 ls-1">Pendapatan</h6>
+                    <h2 class="fw-bold mb-0 display-6" id="total_omzet_display">Rp 0</h2>
                 </div>
             </div>
+            <i class="fas fa-money-bill-wave icon-bg-watermark text-white"></i>
         </div>
     </div>
-    <div class="col-md-4">
-        <div class="card border-0 shadow-sm h-100" style="border-radius: 15px;">
-            <div class="card-body p-4">
-                <div class="d-flex justify-content-between align-items-center">
-                    <div>
-                        <h6 class="text-muted small fw-bold text-uppercase mb-1">Jumlah Transaksi</h6>
-                        <h3 class="fw-bold mb-0 text-dark" id="total_count_display">0</h3>
-                    </div>
-                    <i class="fas fa-shopping-cart fa-2x text-primary bg-primary bg-opacity-10 p-3 rounded-circle"></i>
+    <div class="col-md-6 col-lg-4">
+        <div class="card stats-card-white h-100">
+            <div class="card-body p-4 d-flex flex-column justify-content-between position-relative z-1">
+                <div class="d-flex justify-content-between align-items-start mb-3">
+                    <div class="icon-glass glass-primary"><i class="fas fa-shopping-bag"></i></div>
+                </div>
+                <div>
+                    <h6 class="text-muted text-uppercase fw-bold small mb-1 ls-1">Transaksi</h6>
+                    <h2 class="fw-bold text-dark mb-0 display-6" id="total_count_display">0</h2>
                 </div>
             </div>
+            <i class="fas fa-receipt icon-bg-watermark text-dark opacity-05"></i>
         </div>
     </div>
 </div>
 
-<div class="card border-0 shadow-sm">
+<div class="card border-0 shadow-sm rounded-4 overflow-hidden">
+    
+    <div class="p-3 border-bottom d-flex flex-column flex-md-row justify-content-between align-items-center bg-white gap-3 no-print">
+        
+        <div class="position-relative w-100 w-md-auto" style="min-width: 300px;">
+            <i class="fas fa-search search-icon"></i>
+            <input type="text" id="searchInput" class="form-control search-input py-2" placeholder="Cari pelanggan, item, atau antrian...">
+        </div>
+
+        <div class="text-muted small">
+            Menampilkan <span class="fw-bold text-dark" id="visibleCount">{{ transactions|length }}</span> data
+        </div>
+    </div>
+
     <div class="card-body p-0">
         <div class="table-responsive">
-            <table class="table table-hover align-middle mb-0">
+            <table class="table table-hover align-middle mb-0" id="transactionTable">
                 <thead class="bg-light text-muted small text-uppercase">
                     <tr>
-                        <th class="ps-4">Waktu</th>
+                        <th class="ps-4 py-3">Waktu</th>
                         <th class="text-center">Antrian</th>
                         <th>Pelanggan</th>
-                        <th>Produk & Diskon</th>
-                        <th class="text-center">Metode</th> <th class="text-center">Poin</th> 
-                        <th class="text-end pe-4">Total Akhir</th>
+                        <th>Detail Item</th>
+                        <th class="text-center">Bayar</th>
+                        <th class="text-end pe-4">Total</th>
                     </tr>
                 </thead>
                 <tbody id="transaction_list">
                     {% for t in transactions %}
                     <tr class="data-row {{ 'row-discount' if t.total_discount > 0 else '' }}">
                         <td class="ps-4 text-muted small">
-                            {{ t.date.strftime('%d/%m/%Y %H:%M') }}
+                            <div class="fw-bold text-dark">{{ t.date.strftime('%d %b %Y') }}</div>
+                            {{ t.date.strftime('%H:%M') }}
                         </td>
                         
                         <td class="text-center">
-                            <h4 class="fw-bold text-dark mb-0">{{ t.queue_number or '-' }}</h4>
-                            <small class="text-muted">Meja: {{ t.table_number or '-' }}</small>
+                            <span class="badge bg-light text-dark border px-3 py-2 rounded-pill font-monospace">
+                                {{ t.queue_number or '-' }}
+                            </span>
                         </td>
 
-                        <td class="fw-bold">{{ t.customer_name }}</td>
+                        <td>
+                            <div class="fw-bold text-dark customer-name">{{ t.customer_name }}</div>
+                            {% if t.table_number %}
+                            <small class="text-muted"><i class="fas fa-chair me-1"></i>Meja {{ t.table_number }}</small>
+                            {% endif %}
+                        </td>
                         
                         <td>
-                            <div class="d-flex flex-column gap-1">
+                            <div class="d-flex flex-column gap-1 item-details">
                                 {% for item in t.list_belanja %}
-                                    <div class="d-flex align-items-center">
-                                        <i class="fas fa-circle text-primary me-2" style="font-size: 5px;"></i>
-                                        <span class="fw-bold text-dark me-2">{{ item.name }}</span>
-                                        <span class="badge bg-light text-dark border text-xs">x{{ item.qty }}</span>
+                                    <div class="small">
+                                        <span class="fw-bold text-dark">{{ item.name }}</span>
+                                        <span class="text-muted ms-1">x{{ item.qty }}</span>
                                     </div>
                                 {% endfor %}
                             </div>
-
                             {% if t.total_discount > 0 %}
-                                <div class="mt-2 pt-2 border-top border-light">
-                                    <small class="text-danger fw-bold">
-                                        <i class="fas fa-tags me-1"></i>Hemat Voucher: -Rp {{ "{:,.0f}".format(t.total_discount) }}
-                                    </small>
+                                <div class="mt-1">
+                                    <span class="badge bg-danger bg-opacity-10 text-danger border border-danger border-opacity-25" style="font-size: 0.7rem;">
+                                        Hemat: -Rp {{ "{:,.0f}".format(t.total_discount) }}
+                                    </span>
                                 </div>
                             {% endif %}
                         </td>
 
                         <td class="text-center">
-                            <span class="badge bg-white text-dark border shadow-sm">
+                            <span class="badge rounded-pill px-3 py-2
+                                {{ 'bg-success bg-opacity-10 text-success' if t.payment_method == 'Cash' else 'bg-info bg-opacity-10 text-info' }}">
                                 {{ t.payment_method or 'Cash' }}
                             </span>
                         </td>
 
-                        <td class="text-center">
-                            {% if t.total_points > 0 %}
-                                <span class="badge bg-warning text-dark border border-warning shadow-sm rounded-pill">
-                                    +{{ t.total_points }} Poin
-                                </span>
-                            {% else %}
-                                <span class="text-muted small">-</span>
-                            {% endif %}
+                        <td class="text-end pe-4">
+                            <div class="fw-bold text-dark h6 mb-0 value-cell" data-value="{{ t.total_final }}">
+                                Rp {{ "{:,.0f}".format(t.total_final) }}
+                            </div>
                         </td>
-
-                        <td class="text-end pe-4 fw-bold {{ 'text-danger' if t.total_discount > 0 else 'text-success' }} value-cell" data-value="{{ t.total_final }}">
-                            Rp {{ "{:,.0f}".format(t.total_final) }}
+                    </tr>
+                    {% else %}
+                    <tr id="emptyStateOriginal">
+                        <td colspan="6" class="text-center py-5 text-muted">
+                            <div class="d-flex flex-column align-items-center">
+                                <i class="fas fa-inbox fa-3x mb-3 opacity-25"></i>
+                                <p class="mb-0">Belum ada transaksi hari ini.</p>
+                            </div>
                         </td>
                     </tr>
                     {% endfor %}
                 </tbody>
             </table>
+            
+            <div id="noSearchResult" class="text-center py-5 d-none">
+                <i class="fas fa-search fa-3x text-muted opacity-25 mb-3"></i>
+                <h6 class="text-dark fw-bold">Tidak ditemukan</h6>
+                <p class="text-muted small">Coba kata kunci lain.</p>
+            </div>
         </div>
     </div>
 </div>
 
 <script>
+    // 1. Script Hitung Total (Sama seperti sebelumnya)
     function calculateStats() {
         let total = 0;
+        let count = 0;
         let rows = document.querySelectorAll('.data-row');
+        
         rows.forEach(row => {
-            total += parseInt(row.querySelector('.value-cell').getAttribute('data-value')) || 0;
+            // Hanya hitung baris yang tidak di-hide oleh search
+            if (row.style.display !== 'none') {
+                let valCell = row.querySelector('.value-cell');
+                if(valCell) {
+                    total += parseInt(valCell.getAttribute('data-value')) || 0;
+                }
+                count++;
+            }
         });
 
         const formattedTotal = "Rp " + new Intl.NumberFormat('id-ID').format(total);
+        
+        // Update Stats Cards
         document.getElementById('total_omzet_display').innerText = formattedTotal;
-        document.getElementById('total_count_display').innerText = rows.length;
+        document.getElementById('total_count_display').innerText = count;
+        
+        // Update Print Summary
         document.getElementById('print_total_omzet').innerText = formattedTotal;
-        document.getElementById('print_total_count').innerText = rows.length;
+        document.getElementById('print_total_count').innerText = count;
+
+        // Update Visible Count Label
+        document.getElementById('visibleCount').innerText = count;
     }
 
+    // 2. Script Pencarian Real-time
+    document.getElementById('searchInput').addEventListener('keyup', function() {
+        const term = this.value.toLowerCase();
+        const rows = document.querySelectorAll('.data-row');
+        let hasVisibleRow = false;
+
+        rows.forEach(row => {
+            // Cari di Nama Pelanggan, Item, dan Antrian
+            const text = row.innerText.toLowerCase();
+            
+            if (text.includes(term)) {
+                row.style.display = '';
+                hasVisibleRow = true;
+            } else {
+                row.style.display = 'none';
+            }
+        });
+
+        // Toggle Empty State Pencarian
+        const noResultDiv = document.getElementById('noSearchResult');
+        const emptyOriginal = document.getElementById('emptyStateOriginal');
+        
+        if (!hasVisibleRow) {
+            if(rows.length > 0) { // Jika ada data tapi tidak cocok search
+                noResultDiv.classList.remove('d-none');
+            }
+            if(emptyOriginal) emptyOriginal.style.display = 'none';
+        } else {
+            noResultDiv.classList.add('d-none');
+        }
+
+        // Recalculate stats based on filtered results
+        calculateStats();
+    });
+
+    // Init
     document.addEventListener('DOMContentLoaded', calculateStats);
 
+    // Print & WA Functions
     function handlePrint() {
         const options = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' };
         document.getElementById('display_print_date').innerText = new Date().toLocaleString('id-ID', options) + " WIB";
@@ -218,7 +336,7 @@
     function shareWA() {
         let t = document.getElementById('total_omzet_display').innerText;
         let c = document.getElementById('total_count_display').innerText;
-        window.open(`https://wa.me/?text=${encodeURIComponent('*LAPORAN NUSA NIAGA*\n💰 Omzet: ' + t + '\n📦 Transaksi: ' + c)}`, '_blank');
+        window.open(`https://wa.me/?text=${encodeURIComponent('*LAPORAN HARIAN NUSA NIAGA*\n\n💰 Total Omzet: ' + t + '\n🧾 Jumlah Transaksi: ' + c + '\n\n_Digenerate oleh Sistem_')}`, '_blank');
     }
 </script>
 {% endblock %}

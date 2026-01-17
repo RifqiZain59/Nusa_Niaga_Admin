@@ -3,68 +3,171 @@
 {% block content %}
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
-<div class="d-flex justify-content-between align-items-center mb-4">
-    <h4 class="fw-bold text-primary">Statistik Grafik Toko</h4>
-    <button class="btn btn-outline-secondary btn-sm" onclick="window.print()">
-        <i class="fas fa-print me-2"></i>Print Laporan
-    </button>
-</div>
+<style>
+    @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap');
+    
+    body {
+        font-family: 'Plus Jakarta Sans', sans-serif;
+        background-color: #f3f4f6;
+    }
 
-<div class="row mb-4">
-    <div class="col-md-6 mb-2">
-        <div class="alert alert-info border-0 shadow-sm d-flex align-items-center" role="alert">
-            <i class="fas fa-info-circle fa-2x me-3 opacity-50"></i>
-            <div>
-                <small class="text-uppercase fw-bold opacity-75">Tips Strategi</small>
-                <div class="fw-bold">
-                    {% if insights and insights|length > 0 %}
-                        {{ insights[0] }}
-                    {% else %}
-                        Data penjualan belum cukup untuk analisis AI.
-                    {% endif %}
+    /* === DASHBOARD CARDS === */
+    .card-dashboard {
+        background: white;
+        border: 1px solid #e5e7eb;
+        border-radius: 16px;
+        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+        transition: transform 0.2s, box-shadow 0.2s;
+    }
+    .card-dashboard:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+    }
+
+    /* === INSIGHT & CAMPAIGN CARDS === */
+    .info-card {
+        border-radius: 16px;
+        border: none;
+        position: relative;
+        overflow: hidden;
+        color: #1f2937;
+        height: 100%;
+    }
+    .info-card-ai { background: linear-gradient(135deg, #e0e7ff 0%, #ffffff 100%); border: 1px solid #c7d2fe; }
+    .info-card-ads { background: linear-gradient(135deg, #dbeafe 0%, #ffffff 100%); border: 1px solid #bfdbfe; }
+
+    .icon-box {
+        width: 48px; height: 48px;
+        border-radius: 12px;
+        display: flex; align-items: center; justify-content: center;
+        font-size: 1.25rem;
+        margin-right: 1rem;
+        flex-shrink: 0;
+    }
+    .icon-indigo { background: rgba(79, 70, 229, 0.1); color: #4f46e5; }
+    .icon-blue { background: rgba(37, 99, 235, 0.1); color: #2563eb; }
+
+    /* === CHART CONTAINERS === */
+    .chart-wrapper {
+        position: relative;
+        height: 350px;
+        width: 100%;
+    }
+
+    /* === BUTTONS === */
+    .btn-print {
+        border: 1px solid #e5e7eb;
+        background: white;
+        color: #374151;
+        font-weight: 600;
+        border-radius: 8px;
+        padding: 0.5rem 1rem;
+        transition: all 0.2s;
+    }
+    .btn-print:hover { background: #f9fafb; border-color: #d1d5db; }
+
+    /* === PRINT STYLES === */
+    @media print {
+        body { background: white; }
+        .no-print, .btn, .navbar, #sidebar-wrapper { display: none !important; }
+        .card-dashboard, .info-card { box-shadow: none !important; border: 1px solid #ddd !important; }
+        .chart-wrapper { height: 300px !important; }
+    }
+</style>
+
+<div class="container py-4">
+    
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h3 class="fw-bold text-dark mb-1">Analitik Toko</h3>
+            <p class="text-muted small mb-0">Laporan performa penjualan dan statistik pengunjung.</p>
+        </div>
+        <button class="btn btn-print shadow-sm" onclick="window.print()">
+            <i class="fas fa-print me-2 text-secondary"></i>Cetak Laporan
+        </button>
+    </div>
+
+    <div class="row g-4 mb-4">
+        <div class="col-md-6">
+            <div class="card info-card info-card-ai p-4 shadow-sm">
+                <div class="d-flex align-items-start">
+                    <div class="icon-box icon-indigo">
+                        <i class="fas fa-robot"></i>
+                    </div>
+                    <div>
+                        <h6 class="text-uppercase fw-bold text-indigo mb-2" style="font-size: 0.75rem; letter-spacing: 1px; color: #4f46e5;">AI Insight & Strategi</h6>
+                        <div class="fw-medium" style="font-size: 0.95rem; line-height: 1.5;">
+                            {% if insights and insights|length > 0 %}
+                                "{{ insights[0] }}"
+                            {% else %}
+                                <span class="text-muted fst-italic">Data penjualan belum cukup untuk menghasilkan analisis AI. Terus tingkatkan transaksi Anda.</span>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-6">
+            <div class="card info-card info-card-ads p-4 shadow-sm">
+                <div class="d-flex align-items-start">
+                    <div class="icon-box icon-blue">
+                        <i class="fas fa-bullhorn"></i>
+                    </div>
+                    <div class="w-100">
+                        <div class="d-flex justify-content-between align-items-start">
+                            <h6 class="text-uppercase fw-bold text-primary mb-2" style="font-size: 0.75rem; letter-spacing: 1px;">Status Iklan</h6>
+                            {% if campaigns %}
+                                <span class="badge bg-primary bg-opacity-10 text-primary rounded-pill">Aktif</span>
+                            {% else %}
+                                <span class="badge bg-secondary bg-opacity-10 text-secondary rounded-pill">Non-Aktif</span>
+                            {% endif %}
+                        </div>
+                        <div class="fw-bold fs-5 text-dark mb-0">
+                            {% if campaigns %}
+                                {{ campaigns|length }} <span class="fs-6 fw-normal text-muted">Kampanye Berjalan</span>
+                            {% else %}
+                                0 <span class="fs-6 fw-normal text-muted">Kampanye</span>
+                                <div class="small text-muted fw-normal mt-1">Belum ada promosi yang aktif saat ini.</div>
+                            {% endif %}
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
     </div>
-    <div class="col-md-6 mb-2">
-        <div class="alert alert-primary text-white border-0 shadow-sm d-flex align-items-center" role="alert" style="background-color: #2563eb;">
-            <i class="fas fa-chart-pie fa-2x me-3 opacity-50"></i>
-            <div>
-                <small class="text-uppercase fw-bold opacity-75">Status Kampanye</small>
-                <div class="fw-bold">
-                    {% if campaigns %}
-                        {{ campaigns|length }} Kampanye Iklan Aktif
-                    {% else %}
-                        Tidak ada kampanye aktif.
-                    {% endif %}
+
+    <div class="row g-4">
+        <div class="col-lg-8">
+            <div class="card card-dashboard h-100">
+                <div class="card-header bg-white border-bottom-0 py-3 d-flex justify-content-between align-items-center">
+                    <h6 class="fw-bold text-dark mb-0">
+                        <i class="fas fa-chart-area me-2 text-primary"></i>Tren Pendapatan
+                    </h6>
+                    <span class="badge bg-light text-secondary border">7 Hari Terakhir</span>
+                </div>
+                <div class="card-body">
+                    <div class="chart-wrapper">
+                        <canvas id="salesChart"></canvas>
+                    </div>
                 </div>
             </div>
         </div>
-    </div>
-</div>
 
-<div class="row">
-    <div class="col-md-8 mb-4">
-        <div class="card border-0 shadow-sm h-100">
-            <div class="card-header bg-white py-3">
-                <h6 class="fw-bold mb-0 text-dark"><i class="fas fa-chart-line me-2 text-primary"></i>Tren Omzet (7 Hari Terakhir)</h6>
-            </div>
-            <div class="card-body">
-                <div style="height: 350px; width: 100%;">
-                    <canvas id="salesChart"></canvas>
+        <div class="col-lg-4">
+            <div class="card card-dashboard h-100">
+                <div class="card-header bg-white border-bottom-0 py-3">
+                    <h6 class="fw-bold text-dark mb-0">
+                        <i class="fas fa-clock me-2 text-warning"></i>Jam Tersibuk
+                    </h6>
                 </div>
-            </div>
-        </div>
-    </div>
-
-    <div class="col-md-4 mb-4">
-        <div class="card border-0 shadow-sm h-100">
-            <div class="card-header bg-white py-3">
-                <h6 class="fw-bold mb-0 text-dark"><i class="fas fa-clock me-2 text-warning"></i>Jam Tersibuk</h6>
-            </div>
-            <div class="card-body">
-                <div style="height: 350px; width: 100%;">
-                    <canvas id="peakHourChart"></canvas>
+                <div class="card-body">
+                    <div class="chart-wrapper">
+                        <canvas id="peakHourChart"></canvas>
+                    </div>
+                    <div class="mt-3 text-center small text-muted">
+                        Waktu dengan volume transaksi tertinggi.
+                    </div>
                 </div>
             </div>
         </div>
@@ -75,105 +178,137 @@
 {
     "dates": {{ dates | default('[]') | safe }},
     "revenue": {{ revenue | default('[]') | safe }},
-    "peak": {{ peak_hours | default({}) | tojson | safe }},
-    "primaryColor": "#2563eb"
+    "peak": {{ peak_hours | default({}) | tojson | safe }}
 }
 </script>
 
 <script>
     document.addEventListener("DOMContentLoaded", function() {
-        
-        // --- 1. AMBIL DATA DARI JSON (ANTI CRASH) ---
-        let chartData = { dates: [], revenue: [], peak: {}, primaryColor: '#2563eb' };
-
+        // 1. Parsing Data Aman
+        let chartData = { dates: [], revenue: [], peak: {} };
         try {
-            const rawData = document.getElementById('chart-data').textContent;
-            chartData = JSON.parse(rawData);
-        } catch (err) {
-            console.error("Gagal memproses data grafik:", err);
+            chartData = JSON.parse(document.getElementById('chart-data').textContent);
+        } catch (e) { console.error("Error parsing chart data", e); }
+
+        // Warna & Font
+        const fontFamily = "'Plus Jakarta Sans', sans-serif";
+        const primaryColor = '#4f46e5'; // Indigo
+        const warningColor = '#f59e0b'; // Amber
+
+        // 2. Setup Gradient Function
+        function createGradient(ctx, colorStart, colorEnd) {
+            const gradient = ctx.createLinearGradient(0, 0, 0, 400);
+            gradient.addColorStop(0, colorStart);
+            gradient.addColorStop(1, colorEnd);
+            return gradient;
         }
 
-        const salesDates = chartData.dates;
-        const salesRevenue = chartData.revenue;
-        const peakData = chartData.peak;
-        const themeColor = chartData.primaryColor;
-
-        // Cek apakah Chart.js berhasil di-load
-        if (typeof Chart === 'undefined') {
-            console.error("Chart.js belum terload. Cek koneksi internet.");
-            return;
-        }
-
-        // --- 2. RENDER CHART PENJUALAN ---
+        // 3. Sales Chart (Line with Gradient)
         const ctxSales = document.getElementById('salesChart');
         if (ctxSales) {
-            new Chart(ctxSales.getContext('2d'), {
+            const ctx = ctxSales.getContext('2d');
+            const gradientFill = createGradient(ctx, 'rgba(79, 70, 229, 0.4)', 'rgba(79, 70, 229, 0.0)');
+
+            new Chart(ctx, {
                 type: 'line',
                 data: {
-                    labels: salesDates,
+                    labels: chartData.dates,
                     datasets: [{
-                        label: 'Omzet (Rp)',
-                        data: salesRevenue,
-                        borderColor: themeColor,
-                        backgroundColor: themeColor + '20', // Hex transparansi
-                        borderWidth: 2,
-                        fill: true,
-                        tension: 0.3,
-                        pointRadius: 4,
+                        label: 'Omzet',
+                        data: chartData.revenue,
+                        borderColor: primaryColor,
+                        backgroundColor: gradientFill,
+                        borderWidth: 3,
                         pointBackgroundColor: '#fff',
-                        pointBorderColor: themeColor
+                        pointBorderColor: primaryColor,
+                        pointRadius: 4,
+                        pointHoverRadius: 6,
+                        fill: true,
+                        tension: 0.4 // Garis melengkung halus
                     }]
                 },
                 options: {
                     responsive: true,
                     maintainAspectRatio: false,
-                    plugins: { 
+                    plugins: {
                         legend: { display: false },
                         tooltip: {
+                            backgroundColor: '#fff',
+                            titleColor: '#1f2937',
+                            bodyColor: '#1f2937',
+                            borderColor: '#e5e7eb',
+                            borderWidth: 1,
+                            padding: 10,
+                            displayColors: false,
+                            titleFont: { family: fontFamily, size: 13 },
+                            bodyFont: { family: fontFamily, size: 14, weight: 'bold' },
                             callbacks: {
                                 label: function(context) {
-                                    return ' Rp ' + context.raw.toLocaleString('id-ID');
+                                    return 'Rp ' + context.parsed.y.toLocaleString('id-ID');
                                 }
                             }
                         }
                     },
                     scales: {
-                        y: { 
-                            beginAtZero: true, 
-                            grid: { borderDash: [5, 5] },
-                            ticks: {
-                                callback: function(value) {
-                                    return value.toLocaleString('id-ID');
-                                }
+                        y: {
+                            beginAtZero: true,
+                            grid: { borderDash: [4, 4], color: '#f3f4f6' },
+                            ticks: { 
+                                font: { family: fontFamily },
+                                callback: function(value) { return (value / 1000) + 'k'; } // Singkat angka
                             }
                         },
-                        x: { grid: { display: false } }
+                        x: {
+                            grid: { display: false },
+                            ticks: { font: { family: fontFamily } }
+                        }
                     }
                 }
             });
         }
 
-        // --- 3. RENDER CHART JAM SIBUK ---
+        // 4. Peak Hour Chart (Bar)
         const ctxPeak = document.getElementById('peakHourChart');
         if (ctxPeak) {
-            new Chart(ctxPeak.getContext('2d'), {
+            new Chart(ctxPeak, {
                 type: 'bar',
                 data: {
-                    labels: Object.keys(peakData),
+                    labels: Object.keys(chartData.peak),
                     datasets: [{
                         label: 'Transaksi',
-                        data: Object.values(peakData),
-                        backgroundColor: '#f59e0b',
-                        borderRadius: 4
+                        data: Object.values(chartData.peak),
+                        backgroundColor: warningColor,
+                        borderRadius: 6,
+                        barPercentage: 0.6
                     }]
                 },
                 options: {
                     responsive: true,
                     maintainAspectRatio: false,
-                    plugins: { legend: { display: false } },
+                    plugins: {
+                        legend: { display: false },
+                        tooltip: {
+                            backgroundColor: '#fff',
+                            titleColor: '#1f2937',
+                            bodyColor: '#1f2937',
+                            borderColor: '#e5e7eb',
+                            borderWidth: 1,
+                            padding: 10,
+                            callbacks: {
+                                title: function(context) { return 'Pukul ' + context[0].label + ':00'; }
+                            }
+                        }
+                    },
                     scales: {
-                        y: { beginAtZero: true, ticks: { stepSize: 1 }, grid: { borderDash: [5, 5] } },
-                        x: { grid: { display: false } }
+                        y: {
+                            beginAtZero: true,
+                            grid: { borderDash: [4, 4], color: '#f3f4f6' },
+                            ticks: { stepSize: 1, font: { family: fontFamily } }
+                        },
+                        x: {
+                            grid: { display: false },
+                            ticks: { font: { family: fontFamily } }
+                        }
                     }
                 }
             });

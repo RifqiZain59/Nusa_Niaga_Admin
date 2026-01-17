@@ -128,9 +128,6 @@
                 <a href="{{ url_for('discounts') }}" class="list-group-item list-group-item-action {{ 'active' if 'discounts' in request.path else '' }}">
                     <i class="fas fa-tags me-3"></i> <span class="menu-text">Voucher</span>
                 </a>
-                <a href="{{ url_for('banners') }}" class="list-group-item list-group-item-action {{ 'active' if 'banners' in request.path else '' }}">
-                    <i class="fas fa-images me-3"></i> <span class="menu-text">Banner App</span>
-                </a>
 
                 <div class="sidebar-heading">Pelanggan</div>
                 <a href="{{ url_for('customers') }}" class="list-group-item list-group-item-action {{ 'active' if 'customers' in request.path else '' }}">

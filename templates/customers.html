@@ -3,248 +3,317 @@
 {% block content %}
 
 <style>
-    /* --- PRINT CONFIGURATION --- */
-    @media print {
-        /* Sembunyikan elemen navigasi, tombol, dan dekorasi saat mencetak */
-        #sidebar-wrapper, .navbar, .btn, .no-print, .alert, .modal, .sidebar-footer, footer, .badge-point-action {
-            display: none !important;
-        }
-        
-        /* Reset margin dan padding untuk kertas */
-        #page-content-wrapper {
-            margin: 0 !important;
-            padding: 0 !important;
-            width: 100% !important;
-        }
-
-        .card {
-            border: none !important;
-            box-shadow: none !important;
-            margin-bottom: 20px !important;
-        }
-
-        /* Sembunyikan kolom "Aksi" pada tabel saat cetak */
-        #customerTable th:last-child, #customerTable td:last-child {
-            display: none !important;
-        }
-
-        /* Header Laporan khusus Print */
-        .print-header {
-            display: block !important;
-            text-align: center;
-            margin-bottom: 30px;
-            border-bottom: 2px solid #000;
-            padding-bottom: 10px;
-        }
-        
-        body { 
-            font-size: 12px; 
-            background-color: white !important; 
-            font-family: 'Times New Roman', Times, serif;
-        }
-        
-        .table { 
-            width: 100% !important; 
-            border-collapse: collapse !important;
-        }
-        
-        .table th, .table td {
-            border: 1px solid #000 !important;
-            padding: 5px !important;
-        }
+    @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap');
+    
+    body {
+        font-family: 'Plus Jakarta Sans', sans-serif;
+        background-color: #f3f4f6;
     }
 
-    /* Sembunyikan Header Laporan di layar komputer */
+    /* === CARD STYLES === */
+    .card-premium {
+        background: white;
+        border: 1px solid #e5e7eb;
+        border-radius: 16px;
+        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+        overflow: hidden;
+    }
+
+    /* === STAT CARDS === */
+    .stat-card {
+        border-radius: 16px;
+        color: white;
+        position: relative;
+        overflow: hidden;
+        border: none;
+        height: 100%;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        padding: 1.5rem;
+    }
+    .stat-blue { background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%); }
+    .stat-purple { background: linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%); }
+    
+    .icon-watermark {
+        position: absolute; bottom: -15px; right: -15px;
+        font-size: 5rem; color: white; opacity: 0.15;
+        transform: rotate(-15deg); pointer-events: none;
+    }
+
+    /* === TABLE STYLES === */
+    .table-header {
+        background-color: #f9fafb; font-size: 0.75rem; text-transform: uppercase;
+        color: #6b7280; font-weight: 600; border-bottom: 1px solid #e5e7eb;
+    }
+    .table-row { border-bottom: 1px solid #f3f4f6; transition: background 0.15s; }
+    .table-row:hover { background-color: #f8fafc; }
+
+    /* === GIFT CARD SELECTION (MODAL) === */
+    .gift-option {
+        cursor: pointer;
+        border: 2px solid #e5e7eb;
+        border-radius: 12px;
+        padding: 1rem;
+        transition: all 0.2s;
+        height: 100%;
+        text-align: left;
+        background: white;
+        position: relative;
+        overflow: hidden;
+    }
+    .gift-option:hover {
+        border-color: #3b82f6;
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(59, 130, 246, 0.15);
+    }
+    .btn-check:checked + .gift-option {
+        border-color: #3b82f6;
+        background-color: #eff6ff;
+        box-shadow: 0 0 0 1px #3b82f6;
+    }
+    .btn-check:checked + .gift-option::after {
+        content: '\f00c'; /* FontAwesome Check */
+        font-family: "Font Awesome 5 Free"; font-weight: 900;
+        position: absolute; top: 10px; right: 10px;
+        color: #3b82f6; font-size: 1rem;
+    }
+
+    /* === PRINT STYLES === */
+    @media print {
+        #sidebar-wrapper, .navbar, .btn, .no-print, footer { display: none !important; }
+        .card-premium { border: 1px solid #ccc !important; box-shadow: none !important; }
+        body { background: white !important; }
+        .print-header { display: block !important; margin-bottom: 20px; text-align: center; border-bottom: 2px solid black; padding-bottom: 10px; }
+        .table { width: 100% !important; border-collapse: collapse !important; }
+        .table th, .table td { border: 1px solid #ddd !important; padding: 8px !important; }
+    }
     .print-header { display: none; }
 </style>
 
 <div class="print-header">
-    <h2 class="mb-1 text-uppercase">Laporan Loyalitas Pelanggan</h2>
-    <h4 class="mb-2">NUSA NIAGA - POS & CRM SYSTEM</h4>
-    <p class="mb-0">Daftar Poin Member & Histori Penukaran Hadiah</p>
-    <small>Dicetak pada: <span id="print_date_display"></span></small>
+    <h2 class="fw-bold">NUSA NIAGA - LAPORAN LOYALITAS</h2>
+    <p class="small fw-bold">Tanggal Cetak: <span id="print_date_display"></span></p>
 </div>
 
-<div class="d-flex justify-content-between align-items-center mb-4 no-print">
-    <div>
-        <h4 class="fw-bold text-primary mb-1">Loyalty Pelanggan</h4>
-        <p class="text-muted small mb-0">Kelola poin member dan pemantauan reward.</p>
+<div class="container py-5" style="max-width: 1200px;">
+
+    <div class="d-flex justify-content-between align-items-end mb-4 no-print">
+        <div>
+            <h3 class="fw-bold text-dark mb-1">Loyalty Program</h3>
+            <p class="text-muted small mb-0">Kelola poin pelanggan dan penukaran hadiah.</p>
+        </div>
+        <div class="d-flex gap-2">
+            <button onclick="shareToWhatsApp()" class="btn btn-success text-white fw-bold px-3 shadow-sm rounded-3">
+                <i class="fab fa-whatsapp me-2"></i> Laporan WA
+            </button>
+            <button onclick="printLaporan()" class="btn btn-outline-secondary fw-bold px-3 shadow-sm rounded-3">
+                <i class="fas fa-print me-2"></i> Cetak PDF
+            </button>
+        </div>
     </div>
-    
-    <div class="d-flex gap-2">
-        <button onclick="shareToWhatsApp()" class="btn btn-success shadow-sm">
-            <i class="fab fa-whatsapp me-2"></i> Kirim Laporan WA
-        </button>
-        <button onclick="printLaporan()" class="btn btn-danger shadow-sm">
-            <i class="fas fa-file-pdf me-2"></i> Cetak Laporan PDF
-        </button>
+
+    <div class="row g-4 mb-4 no-print">
+        <div class="col-md-4">
+            <div class="card-premium p-4 h-100 d-flex align-items-center bg-white">
+                <div class="rounded-circle bg-info bg-opacity-10 p-3 me-3 text-info">
+                    <i class="fas fa-exchange-alt fa-lg"></i>
+                </div>
+                <div>
+                    <small class="text-uppercase text-muted fw-bold" style="font-size: 0.7rem;">Nilai Tukar</small>
+                    <h5 class="fw-bold text-dark mb-0">1 Poin = Rp 5.000</h5>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="stat-card stat-blue">
+                <h6 class="text-white-50 text-uppercase fw-bold small mb-1">Total Member</h6>
+                <h2 class="fw-bold mb-0 display-6">{{ customers|length }}</h2>
+                <i class="fas fa-users icon-watermark"></i>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="stat-card stat-purple">
+                <h6 class="text-white-50 text-uppercase fw-bold small mb-1">Total Poin Aktif</h6>
+                {% set total_points = customers | sum(attribute='points') %}
+                <h2 class="fw-bold mb-0 display-6">{{ total_points }}</h2>
+                <i class="fas fa-coins icon-watermark"></i>
+            </div>
+        </div>
     </div>
-</div>
 
-<div class="alert alert-info py-2 px-3 mb-4 small border-0 bg-info bg-opacity-10 text-primary fw-bold shadow-sm no-print">
-    <i class="fas fa-info-circle me-1"></i> Kurs Penukaran: 1 Poin = Rp 5.000
-</div>
+    <div class="row g-4">
+        <div class="col-lg-8">
+            <div class="card-premium h-100">
+                <div class="p-4 border-bottom bg-white d-flex justify-content-between align-items-center">
+                    <h6 class="fw-bold m-0 text-dark"><i class="fas fa-list me-2 text-primary"></i>Daftar Member</h6>
+                </div>
+                <div class="table-responsive">
+                    <table class="table mb-0 align-middle w-100" id="customerTable">
+                        <thead class="table-header">
+                            <tr>
+                                <th class="ps-4 py-3">Pelanggan</th>
+                                <th class="py-3 text-center">Sisa Poin</th>
+                                <th class="py-3 text-end">Valuasi (Rp)</th>
+                                <th class="py-3 text-end pe-4 no-print">Aksi</th>
+                            </tr>
+                        </thead>
+                        <tbody class="bg-white">
+                            {% for c in customers %}
+                            <tr class="table-row customer-row">
+                                <td class="ps-4 py-3">
+                                    <a href="{{ url_for('customer_detail', id=c.id) }}" class="fw-bold text-decoration-none text-dark name-cell">{{ c.name }}</a>
+                                    <div class="small text-muted phone-cell">{{ c.phone }}</div>
+                                </td>
+                                <td class="text-center">
+                                    <span class="badge bg-primary bg-opacity-10 text-primary border border-primary border-opacity-25 rounded-pill px-3 point-cell" data-points="{{ c.points }}">
+                                        {{ c.points }} Poin
+                                    </span>
+                                </td>
+                                <td class="text-end fw-bold text-dark font-monospace">
+                                    Rp {{ "{:,.0f}".format(c.points * 5000) }}
+                                </td>
+                                <td class="text-end pe-4 no-print">
+                                    <button type="button" class="btn btn-sm btn-outline-primary shadow-sm rounded-3" 
+                                            onclick="openCatalogModal(this)" 
+                                            data-id="{{ c.id }}" data-name="{{ c.name }}" data-points="{{ c.points }}">
+                                        <i class="fas fa-gift me-1"></i> Tukar
+                                    </button>
+                                </td>
+                            </tr>
+                            {% else %}
+                            <tr><td colspan="4" class="text-center py-5 text-muted">Belum ada data pelanggan.</td></tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
 
-<div class="card p-4 border-0 shadow-sm mb-4">
-    <h5 class="fw-bold mb-3"><i class="fas fa-users me-2 text-primary"></i>Daftar Poin Member</h5>
-    <div class="table-responsive">
-        <table class="table table-hover align-middle" id="customerTable">
-            <thead class="bg-light">
-                <tr>
-                    <th>Nama Pelanggan</th>
-                    <th>No. HP</th>
-                    <th class="text-center">Sisa Poin</th>
-                    <th class="text-end">Nilai Rupiah</th>
-                    <th class="text-center no-print">Aksi</th>
-                </tr>
-            </thead>
-            <tbody>
-                {% for c in customers %}
-                <tr class="customer-row">
-                    <td>
-                        <a href="{{ url_for('customer_detail', id=c.id) }}" class="fw-bold text-decoration-none text-dark name-cell">
-                            {{ c.name }}
-                        </a>
-                        <br><small class="text-muted d-print-none">{{ c.email }}</small>
-                    </td>
-                    <td class="phone-cell">{{ c.phone }}</td>
-                    <td class="text-center">
-                        <span class="badge bg-warning text-dark fs-6 px-3 rounded-pill border border-warning shadow-sm point-cell" data-points="{{ c.points }}">
-                            {{ c.points }}
-                        </span>
-                    </td>
-                    <td class="text-end fw-bold text-success">
-                        Rp {{ "{:,.0f}".format(c.points * 5000) }}
-                    </td>
-                    <td class="text-center no-print">
-                        <button type="button" class="btn btn-sm btn-primary shadow-sm px-3 badge-point-action" 
-                                onclick="openCatalogModal(this)" 
-                                data-id="{{ c.id }}" 
-                                data-name="{{ c.name }}" 
-                                data-points="{{ c.points }}">
-                            <i class="fas fa-gift me-1"></i> Pilih Hadiah
-                        </button>
-                    </td>
-                </tr>
-                {% else %}
-                <tr><td colspan="5" class="text-center py-5 text-muted">Belum ada pelanggan terdaftar.</td></tr>
-                {% endfor %}
-            </tbody>
-        </table>
-    </div>
-</div>
-
-<div class="card p-4 border-0 shadow-sm">
-    <h5 class="fw-bold text-dark mb-3"><i class="fas fa-history me-2 text-warning"></i>Riwayat Penukaran Poin</h5>
-    <div class="table-responsive">
-        <table class="table table-hover align-middle table-bordered small" id="historyTable">
-            <thead class="table-light">
-                <tr>
-                    <th>Tanggal & Waktu</th>
-                    <th>Nama Pelanggan</th>
-                    <th>Poin Keluar</th>
-                    <th>Ditukar Untuk</th>
-                </tr>
-            </thead>
-            <tbody>
-                {% for log in history %}
-                <tr class="history-row">
-                    <td class="hist-date text-muted">{{ log.date.strftime('%d %b %Y, %H:%M') }}</td>
-                    <td class="fw-bold hist-name">{{ log.customer.name }}</td>
-                    <td class="text-danger fw-bold hist-points text-center">-{{ log.points_spent }}</td>
-                    <td class="text-primary hist-desc">{{ log.description }}</td>
-                </tr>
-                {% else %}
-                <tr><td colspan="4" class="text-center py-3 text-muted">Belum ada riwayat penukaran poin.</td></tr>
-                {% endfor %}
-            </tbody>
-        </table>
+        <div class="col-lg-4">
+            <div class="card-premium h-100">
+                <div class="p-4 border-bottom bg-white">
+                    <h6 class="fw-bold m-0 text-dark"><i class="fas fa-history me-2 text-warning"></i>Riwayat Penukaran</h6>
+                </div>
+                <div class="table-responsive">
+                    <table class="table mb-0 align-middle w-100 small">
+                        <thead class="bg-light text-muted">
+                            <tr>
+                                <th class="ps-4 py-2">Info</th>
+                                <th class="text-end pe-4 py-2">Poin</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for log in history %}
+                            <tr class="history-row border-bottom">
+                                <td class="ps-4 py-3">
+                                    <div class="fw-bold text-dark hist-name">{{ log.customer.name }}</div>
+                                    <div class="text-muted small hist-desc">{{ log.description }}</div>
+                                    <div class="text-muted x-small mt-1 hist-date" style="font-size: 0.7rem;">{{ log.date.strftime('%d/%m %H:%M') }}</div>
+                                </td>
+                                <td class="text-end pe-4 text-danger fw-bold hist-points">
+                                    -{{ log.points_spent }}
+                                </td>
+                            </tr>
+                            {% else %}
+                            <tr><td colspan="2" class="text-center py-4 text-muted">Belum ada aktivitas.</td></tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
     </div>
 </div>
 
 <div class="modal fade" id="redeemModal" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog modal-lg modal-dialog-centered"> 
-        <div class="modal-content border-0 shadow-lg">
-            <div class="modal-header bg-primary text-white border-0">
-                <h5 class="modal-title fw-bold"><i class="fas fa-gift me-2"></i>Katalog Hadiah</h5>
-                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+        <div class="modal-content border-0 shadow-lg rounded-4 overflow-hidden">
+            <div class="modal-header bg-white border-bottom py-3">
+                <h5 class="modal-title fw-bold text-dark"><i class="fas fa-gift me-2 text-primary"></i>Katalog Penukaran</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
             
             <form action="{{ url_for('redeem_points') }}" method="POST" id="redeemForm">
-                <div class="modal-body p-4">
-                    <div class="alert alert-light border d-flex justify-content-between align-items-center mb-4">
-                        <div>
-                            <small class="text-muted text-uppercase fw-bold">Pelanggan</small>
-                            <h5 class="mb-0 fw-bold text-primary" id="modal_customer_name">Nama</h5>
-                            <input type="hidden" name="customer_id" id="modal_customer_id">
-                        </div>
-                        <div class="text-end">
-                            <small class="text-muted text-uppercase fw-bold">Poin Tersedia</small>
-                            <h4 class="mb-0 fw-bold text-warning" id="modal_current_points">0</h4>
-                        </div>
-                    </div>
+                <div class="modal-body p-0">
+                    <div class="row g-0">
+                        <div class="col-md-7 p-4 bg-light">
+                            <div class="d-flex justify-content-between align-items-center mb-4 bg-white p-3 rounded-3 shadow-sm border">
+                                <div>
+                                    <small class="text-muted text-uppercase fw-bold" style="font-size: 0.65rem;">Pelanggan</small>
+                                    <div class="fw-bold text-dark" id="modal_customer_name">Nama</div>
+                                    <input type="hidden" name="customer_id" id="modal_customer_id">
+                                </div>
+                                <div class="text-end">
+                                    <small class="text-muted text-uppercase fw-bold" style="font-size: 0.65rem;">Saldo Poin</small>
+                                    <div class="fw-bold text-primary fs-5" id="modal_current_points">0</div>
+                                </div>
+                            </div>
 
-                    <div class="row">
-                        <div class="col-md-7 border-end">
-                            <h6 class="fw-bold mb-3 text-muted">Pilih Hadiah:</h6>
-                            <div class="row g-2">
+                            <h6 class="fw-bold mb-3 text-secondary small text-uppercase">Pilih Reward:</h6>
+                            <div class="row g-3">
                                 <div class="col-6">
                                     <input type="radio" class="btn-check" name="selected_item" id="item1" onclick="selectItem(10, 'Mug Cantik')">
-                                    <label class="btn btn-outline-light text-dark border w-100 p-3 text-start h-100 position-relative" for="item1">
-                                        Mug Cantik<br><b class="text-primary">10 Poin</b>
+                                    <label class="gift-option w-100" for="item1">
+                                        <div class="fw-bold text-dark">Mug Cantik</div>
+                                        <div class="text-primary fw-bold small mt-1">10 Poin</div>
                                     </label>
                                 </div>
                                 <div class="col-6">
                                     <input type="radio" class="btn-check" name="selected_item" id="item2" onclick="selectItem(20, 'Payung Lipat')">
-                                    <label class="btn btn-outline-light text-dark border w-100 p-3 text-start h-100 position-relative" for="item2">
-                                        Payung Lipat<br><b class="text-primary">20 Poin</b>
+                                    <label class="gift-option w-100" for="item2">
+                                        <div class="fw-bold text-dark">Payung Lipat</div>
+                                        <div class="text-primary fw-bold small mt-1">20 Poin</div>
                                     </label>
                                 </div>
                                 <div class="col-6">
                                     <input type="radio" class="btn-check" name="selected_item" id="item3" onclick="selectItem(30, 'Kaos Exclusive')">
-                                    <label class="btn btn-outline-light text-dark border w-100 p-3 text-start h-100 position-relative" for="item3">
-                                        Kaos Exclusive<br><b class="text-primary">30 Poin</b>
+                                    <label class="gift-option w-100" for="item3">
+                                        <div class="fw-bold text-dark">Kaos Premium</div>
+                                        <div class="text-primary fw-bold small mt-1">30 Poin</div>
                                     </label>
                                 </div>
                                 <div class="col-6">
                                     <input type="radio" class="btn-check" name="selected_item" id="item4" onclick="selectItem(50, 'Voucher 250rb')">
-                                    <label class="btn btn-outline-light text-dark border w-100 p-3 text-start h-100 position-relative" for="item4">
-                                        Voucher Belanja<br><b class="text-primary">50 Poin</b>
+                                    <label class="gift-option w-100" for="item4">
+                                        <div class="fw-bold text-dark">Voucher Belanja</div>
+                                        <div class="text-primary fw-bold small mt-1">50 Poin</div>
                                     </label>
                                 </div>
                             </div>
                         </div>
 
-                        <div class="col-md-5 text-center d-flex flex-column justify-content-center">
+                        <div class="col-md-5 p-4 bg-white d-flex flex-column justify-content-center text-center border-start">
                             <input type="hidden" name="points_to_redeem" id="final_points">
                             <input type="hidden" name="description" id="final_desc">
                             
-                            <div id="qr_placeholder" class="py-5 text-muted fst-italic">
-                                <i class="fas fa-hand-pointer mb-3 d-block fa-3x text-light bg-secondary rounded-circle p-3 mx-auto" style="width: 80px; height: 80px;"></i>
-                                <span class="d-block mt-2">Silakan pilih hadiah di samping untuk melanjutkan.</span>
+                            <div id="qr_placeholder" class="py-5">
+                                <div class="bg-light rounded-circle p-4 mx-auto mb-3" style="width: 100px; height: 100px; display: flex; align-items: center; justify-content: center;">
+                                    <i class="fas fa-mouse-pointer fa-3x text-secondary opacity-50"></i>
+                                </div>
+                                <h6 class="fw-bold text-dark">Belum Ada Item</h6>
+                                <p class="text-muted small">Pilih hadiah di sebelah kiri untuk menampilkan kode verifikasi.</p>
                             </div>
 
                             <div id="qr_result" style="display: none;">
-                                <div class="small mb-2 fw-bold text-uppercase text-muted">Scan QR Code</div>
+                                <h6 class="fw-bold text-dark mb-3">Scan untuk Verifikasi</h6>
+                                <img id="qr_image" src="" width="180" height="180" class="mb-4 border p-2 bg-white rounded-3 shadow-sm">
                                 
-                                <img id="qr_image" src="" width="160" height="160" class="mb-3 border p-2 bg-white rounded shadow-sm" alt="QR Code">
-                                
-                                <div class="card bg-light border-0 p-3 mb-3 text-start shadow-sm">
+                                <div class="bg-light p-3 rounded-3 text-start mb-3">
                                     <div class="d-flex justify-content-between mb-1">
                                         <span class="small text-muted">Item:</span>
-                                        <b id="summary_item" class="text-dark text-end"></b>
+                                        <b id="summary_item" class="text-dark"></b>
                                     </div>
                                     <div class="d-flex justify-content-between">
-                                        <span class="small text-muted">Total Poin:</span>
-                                        <b id="summary_points" class="text-danger text-end"></b>
+                                        <span class="small text-muted">Biaya:</span>
+                                        <b id="summary_points" class="text-danger"></b>
                                     </div>
                                 </div>
                                 
-                                <div class="alert alert-warning py-2 small border-0 text-center mb-0">
-                                    <i class="fas fa-sync-alt me-1"></i> QR berubah tiap 20 menit.
+                                <div class="d-flex align-items-center justify-content-center gap-1 text-warning small fw-bold">
+                                    <i class="fas fa-sync-alt fa-spin"></i> Refresh tiap 20 menit.
                                 </div>
-                                
-                                </div>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -254,7 +323,7 @@
 </div>
 
 <script>
-    // --- 1. LOGIKA CETAK LAPORAN (PDF) ---
+    // --- PRINT ---
     function printLaporan() {
         const today = new Date();
         const options = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' };
@@ -262,7 +331,7 @@
         window.print();
     }
 
-    // --- 2. LOGIKA KIRIM LAPORAN VIA WHATSAPP ---
+    // --- WHATSAPP SHARE ---
     function shareToWhatsApp() {
         let custRows = document.querySelectorAll('.customer-row');
         let totalPoints = 0;
@@ -275,39 +344,20 @@
             }
         });
 
-        let histRows = document.querySelectorAll('.history-row');
-        let histSummary = "";
-        
-        for(let i = 0; i < Math.min(histRows.length, 3); i++) {
-            let row = histRows[i];
-            if (row.querySelector('.hist-name')) { 
-                let name = row.querySelector('.hist-name').innerText;
-                let item = row.querySelector('.hist-desc').innerText;
-                let pts = row.querySelector('.hist-points').innerText;
-                histSummary += `• ${name}: ${item} (${pts})\n`;
-            }
-        }
-
         let message = `*LAPORAN LOYALTY NUSA NIAGA*\n\n`;
         message += `📅 Tanggal: ${new Date().toLocaleDateString('id-ID')}\n`;
         message += `👥 Total Member: *${memberCount}*\n`;
-        message += `💎 Total Poin Aktif: *${totalPoints} Poin*\n`;
-        message += `💰 Valuasi Poin: *Rp ${new Intl.NumberFormat('id-ID').format(totalPoints * 5000)}*\n\n`;
+        message += `💎 Poin Aktif: *${totalPoints}*\n`;
+        message += `💰 Valuasi: *Rp ${new Intl.NumberFormat('id-ID').format(totalPoints * 5000)}*\n\n`;
+        message += `_Dikirim dari Sistem CRM_`;
         
-        if(histSummary) {
-            message += `*🔄 Riwayat Penukaran Terakhir:*\n${histSummary}`;
-        } else {
-            message += `*🔄 Riwayat Penukaran Terakhir:*\nBelum ada data.\n`;
-        }
-        
-        message += `\n_Dikirim otomatis dari Sistem POS Nusa Niaga_`;
         window.open(`https://wa.me/?text=${encodeURIComponent(message)}`, '_blank');
     }
 
-    // --- 3. LOGIKA REDEEM & DYNAMIC QR ---
+    // --- REDEEM LOGIC ---
     let currentCustomerPoints = 0;
-    let qrIntervalId = null; // Menyimpan ID interval untuk auto-refresh
-    let currentSelectedItem = { pts: 0, name: '' }; // Menyimpan pilihan item saat ini
+    let qrIntervalId = null; 
+    let currentSelectedItem = { pts: 0, name: '' }; 
 
     function openCatalogModal(btn) {
         let custId = btn.dataset.id;
@@ -320,57 +370,47 @@
         
         currentCustomerPoints = custPoints;
         
-        // Reset Tampilan ke awal (Placeholder)
+        // Reset UI
         document.getElementById('qr_placeholder').style.display = 'block';
         document.getElementById('qr_result').style.display = 'none';
-        
-        // Bersihkan interval yang mungkin masih berjalan dari sesi sebelumnya
         if (qrIntervalId) clearInterval(qrIntervalId);
 
-        // Reset radio button
         let radios = document.getElementsByName('selected_item');
         radios.forEach(r => r.checked = false);
 
-        // Tampilkan Modal
         new bootstrap.Modal(document.getElementById('redeemModal')).show();
     }
 
-    // Saat modal ditutup total, matikan interval agar tidak memakan memori browser
     document.getElementById('redeemModal').addEventListener('hidden.bs.modal', function () {
         if (qrIntervalId) clearInterval(qrIntervalId);
     });
 
     function selectItem(pts, name) {
-        // Validasi Kecukupan Poin
         if(pts > currentCustomerPoints) { 
-            alert(`Maaf, poin pelanggan tidak cukup!\nButuh: ${pts}, Punya: ${currentCustomerPoints}`);
+            alert(`Poin tidak cukup! (Butuh: ${pts}, Punya: ${currentCustomerPoints})`);
+            // Reset radio button
             setTimeout(() => {
-                event.target.checked = false; 
+                let radios = document.getElementsByName('selected_item');
+                radios.forEach(r => { if(r.value == pts) r.checked = false; }); // Uncheck logic simpel
+                // Karena radio button HTML standard sulit di-uncheck programmatically tanpa loop spesifik, 
+                // kita force reset tampilan placeholder:
                 document.getElementById('qr_placeholder').style.display = 'block';
                 document.getElementById('qr_result').style.display = 'none';
             }, 100);
             return; 
         }
 
-        // Simpan data item yang dipilih
         currentSelectedItem = { pts: pts, name: name };
 
-        // Update Form Hidden Input & UI Teks
         document.getElementById('final_points').value = pts;
         document.getElementById('final_desc').value = name;
         document.getElementById('summary_item').innerText = name;
         document.getElementById('summary_points').innerText = pts + " Poin";
         
-        // Tampilkan area QR
         document.getElementById('qr_placeholder').style.display = 'none';
         document.getElementById('qr_result').style.display = 'block';
 
-        // 1. Generate QR saat ini juga
         generateDynamicQR();
-
-        // 2. Set interval pengecekan setiap 1 menit (60000ms)
-        // Interval ini akan memanggil generateDynamicQR()
-        // Fungsi tsb akan mengecek apakah sudah lewat blok 20 menit atau belum.
         if (qrIntervalId) clearInterval(qrIntervalId);
         qrIntervalId = setInterval(generateDynamicQR, 60000); 
     }
@@ -379,30 +419,16 @@
         const pts = currentSelectedItem.pts;
         const name = currentSelectedItem.name;
         const customerName = document.getElementById('modal_customer_name').innerText;
-
-        // --- LOGIKA ROTASI 20 MENIT ---
-        // Date.now() = milidetik sejak 1970
-        // 20 menit = 20 * 60 * 1000 = 1.200.000 ms
-        // Pembagian dengan Math.floor menghasilkan angka yang sama (timeBlock) selama 20 menit berjalan.
         const timeBlock = Math.floor(Date.now() / (1000 * 60 * 20));
 
-        // Format String QR: REDEEM|Nama|Item|Poin|TimeBlock
-        // TimeBlock disematkan agar isi QR berubah setiap siklus 20 menit
         const qrData = `REDEEM|${customerName}|${name}|${pts}|${timeBlock}`;
-        
-        // URL API QR Code (Tanpa parameter color = Hitam Putih)
-        const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=160x160&data=${encodeURIComponent(qrData)}`;
+        const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=180x180&margin=10&data=${encodeURIComponent(qrData)}`;
         
         let imgObj = document.getElementById('qr_image');
-        
-        // Cek apakah URL berubah (artinya blok 20 menit sudah berganti)
-        // Jika sama, tidak perlu refresh gambar agar tidak kedip
         if (imgObj.src !== qrUrl) {
-            imgObj.style.opacity = '0.5'; // Efek loading visual
+            imgObj.style.opacity = '0.5';
             imgObj.src = qrUrl;
-            imgObj.onload = function() {
-                this.style.opacity = '1';
-            };
+            imgObj.onload = function() { this.style.opacity = '1'; };
         }
     }
 </script>

@@ -1,0 +1,553 @@
+<!DOCTYPE html>
+<html lang="id" class="scroll-smooth">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Nusa Niaga - Platform Bisnis Digital</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <script>
+        tailwind.config = {
+            theme: {
+                fontFamily: {
+                    sans: ['"Plus Jakarta Sans"', 'sans-serif'],
+                },
+                extend: {
+                    colors: {
+                        brand: {
+                            50: '#EEF2FF',
+                            100: '#E0E7FF',
+                            200: '#C7D2FE',
+                            500: '#3B82F6', // Primary Blue
+                            600: '#2563EB', // Deeper Blue
+                            700: '#1D4ED8',
+                            cyan: '#06B6D4', // Cyan Accent
+                        }
+                    },
+                    boxShadow: {
+                        'soft-xl': '0 20px 40px rgba(59, 130, 246, 0.15)',
+                        'glow-blue': '0 0 25px rgba(59, 130, 246, 0.4)',
+                        'card-hover': '0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)',
+                    },
+                    backgroundImage: {
+                        'gradient-mesh': 'radial-gradient(at 40% 20%, rgba(59, 130, 246, 0.1) 0px, transparent 50%), radial-gradient(at 80% 0%, rgba(6, 182, 212, 0.1) 0px, transparent 50%), radial-gradient(at 0% 50%, rgba(59, 130, 246, 0.1) 0px, transparent 50%)',
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        /* Glassmorphism */
+        .glass-light {
+            background: rgba(255, 255, 255, 0.7);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border: 1px solid rgba(255, 255, 255, 0.3);
+        }
+        
+        .text-gradient-blue {
+            background: linear-gradient(to right, #2563EB, #06B6D4);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        /* CSS untuk Mobile Mockup Frame */
+        .phone-frame {
+            box-shadow: 0 0 0 12px #111827, 0 0 0 14px #374151, 0 35px 60px -15px rgba(0, 0, 0, 0.3);
+        }
+        
+        /* Pattern dot background for feature section */
+        .bg-dots {
+            background-image: radial-gradient(#cbd5e1 1px, transparent 1px);
+            background-size: 24px 24px;
+        }
+    </style>
+</head>
+<body class="bg-slate-50 text-slate-700 antialiased overflow-x-hidden">
+
+    <div class="fixed inset-0 bg-gradient-mesh -z-10"></div>
+
+    <nav class="fixed w-full z-50 top-0 py-4 transition-all duration-300">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="glass-light rounded-2xl px-6 py-3 flex justify-between items-center shadow-sm">
+                <div class="flex items-center gap-2">
+                    <div class="w-10 h-10 bg-gradient-to-tr from-brand-600 to-brand-cyan rounded-xl flex items-center justify-center text-white shadow-glow-blue">
+                         <i class="fa-solid fa-chart-pie text-xl"></i>
+                    </div>
+                    <span class="font-extrabold text-xl text-slate-900 tracking-tight">Nusa Niaga</span>
+                </div>
+                <div class="hidden md:flex space-x-8 text-sm font-bold text-slate-600">
+                    <a href="#fitur" class="hover:text-brand-600 transition duration-300">Solusi</a>
+                    <a href="#testimoni" class="hover:text-brand-600 transition duration-300">Testimoni</a>
+                    <a href="#pricing" class="hover:text-brand-600 transition duration-300">Harga</a>
+                </div>
+                <div>
+                    <a href="{{ url_for('login') }}" class="bg-slate-900 hover:bg-brand-700 text-white px-8 py-2.5 rounded-full font-bold transition shadow-lg hover:shadow-soft-xl text-sm">
+                        Masuk
+                    </a>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <section class="relative pt-36 pb-20 lg:pt-44 overflow-hidden">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
+            <div class="grid lg:grid-cols-2 gap-16 items-center">
+                <div class="text-center lg:text-left">
+                    <div class="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-brand-50 border border-brand-100 mb-8">
+                        <span class="flex h-3 w-3 relative">
+                          <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-brand-500 opacity-75"></span>
+                          <span class="relative inline-flex rounded-full h-3 w-3 bg-brand-600"></span>
+                        </span>
+                        <span class="text-sm font-bold text-brand-700">Aplikasi Mobile v3.0 Dirilis</span>
+                    </div>
+                    <h1 class="text-5xl lg:text-6xl font-extrabold text-slate-900 tracking-tight leading-tight mb-6">
+                        Pantau performa bisnis<br>
+                        langsung dari <span class="text-gradient-blue relative">Saku Anda.</span>
+                    </h1>
+                    <p class="text-xl text-slate-600 mb-10 max-w-lg mx-auto lg:mx-0 leading-relaxed">
+                        Akses dashboard analitik real-time di mana saja. Keputusan lebih cepat dengan data yang ada di genggaman tangan.
+                    </p>
+                    <div class="flex flex-col sm:flex-row justify-center lg:justify-start gap-5">
+                        <a href="#" class="flex items-center justify-center gap-3 px-8 py-4 font-bold text-white transition-all duration-300 bg-brand-600 rounded-full hover:bg-brand-700 shadow-lg hover:shadow-soft-xl hover:-translate-y-1">
+                             <i class="fa-brands fa-apple text-xl"></i> App Store
+                        </a>
+                         <a href="#" class="flex items-center justify-center gap-3 px-8 py-4 font-bold text-slate-700 transition-all duration-300 bg-white border-2 border-slate-100 rounded-full hover:border-brand-200 hover:text-brand-600 hover:-translate-y-1">
+                            <i class="fa-brands fa-google-play text-xl"></i> Play Store
+                        </a>
+                    </div>
+                    <div class="mt-8 flex items-center justify-center lg:justify-start gap-4 text-sm text-slate-500 font-medium">
+                        <div class="flex -space-x-2">
+                            <div class="w-8 h-8 rounded-full bg-slate-200 border-2 border-white"></div>
+                            <div class="w-8 h-8 rounded-full bg-slate-300 border-2 border-white"></div>
+                            <div class="w-8 h-8 rounded-full bg-slate-400 border-2 border-white flex items-center justify-center text-xs text-white font-bold">+5k</div>
+                        </div>
+                        <p>Bisnis telah bergabung</p>
+                    </div>
+                </div>
+
+                <div class="relative mx-auto lg:mr-0 max-w-[320px]">
+                    <div class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[350%] h-[150%] bg-gradient-to-tr from-brand-200/40 to-brand-cyan/30 blur-3xl -z-10 rounded-full"></div>
+                    
+                    <div class="phone-frame rounded-[3rem] overflow-hidden bg-white aspect-[9/19.5] relative z-20">
+                        <div class="absolute top-0 inset-x-0 h-7 bg-white z-30 flex justify-between items-center px-6 text-[10px] font-bold text-slate-800">
+                            <span>9:41</span>
+                            <div class="flex gap-1">
+                                <i class="fa-solid fa-signal"></i>
+                                <i class="fa-solid fa-wifi"></i>
+                                <i class="fa-solid fa-battery-full"></i>
+                            </div>
+                        </div>
+                        
+                        <div class="h-full w-full bg-slate-50 overflow-y-auto pt-10 pb-8 px-5 scrollbar-hide">
+                            <div class="flex justify-between items-center mb-6">
+                                <div>
+                                    <h2 class="text-lg font-extrabold text-slate-900 leading-none">Dashboard</h2>
+                                    <p class="text-xs text-slate-500 font-medium">Senin, 14 Okt</p>
+                                </div>
+                                <div class="w-8 h-8 bg-white rounded-full shadow-sm flex items-center justify-center text-slate-700">
+                                    <i class="fa-solid fa-bars"></i>
+                                </div>
+                            </div>
+
+                            <div class="grid grid-cols-2 gap-4 mb-6">
+                                <div class="bg-gradient-to-br from-brand-500 to-brand-600 p-4 rounded-2xl text-white shadow-lg shadow-brand-500/30">
+                                    <div class="w-8 h-8 bg-white/20 rounded-lg flex items-center justify-center mb-3">
+                                        <i class="fa-solid fa-arrow-trend-up text-white"></i>
+                                    </div>
+                                    <p class="text-xs font-medium opacity-80 mb-1">Pendapatan</p>
+                                    <h3 class="text-2xl font-bold">Rp 8.5M</h3>
+                                    <p class="text-[10px] mt-2 flex items-center gap-1"><span class="bg-green-400/20 px-1.5 py-0.5 rounded text-green-300">+12%</span> dari bulan lalu</p>
+                                </div>
+                                <div class="bg-white p-4 rounded-2xl text-slate-900 shadow-sm border border-slate-100">
+                                    <div class="w-8 h-8 bg-brand-100 rounded-lg flex items-center justify-center mb-3">
+                                        <i class="fa-solid fa-users text-brand-600"></i>
+                                    </div>
+                                    <p class="text-xs font-medium text-slate-500 mb-1">Pengguna Aktif</p>
+                                    <h3 class="text-2xl font-bold">24.5K</h3>
+                                    <p class="text-[10px] mt-2 flex items-center gap-1 text-slate-500"><span class="text-brand-600 font-bold">+540</span> minggu ini</p>
+                                </div>
+                            </div>
+
+                            <div class="bg-white p-5 rounded-2xl shadow-sm border border-slate-100 mb-6">
+                                <div class="flex justify-between items-center mb-4">
+                                    <h3 class="font-bold text-sm text-slate-900">Statistik Mingguan</h3>
+                                    <i class="fa-solid fa-ellipsis-vertical text-slate-400 text-sm"></i>
+                                </div>
+                                <div class="flex items-end justify-between h-32 gap-2 pt-4">
+                                    <div class="flex flex-col items-center gap-2 group">
+                                        <div class="w-3 bg-slate-100 rounded-full h-20 relative overflow-hidden group-hover:bg-brand-50 transition">
+                                            <div class="absolute bottom-0 w-full bg-gradient-to-t from-brand-500 to-brand-cyan h-[60%] rounded-full"></div>
+                                        </div>
+                                        <span class="text-[10px] text-slate-400 font-medium">Sen</span>
+                                    </div>
+                                    <div class="flex flex-col items-center gap-2 group">
+                                        <div class="w-3 bg-slate-100 rounded-full h-24 relative overflow-hidden group-hover:bg-brand-50 transition">
+                                            <div class="absolute bottom-0 w-full bg-gradient-to-t from-brand-500 to-brand-cyan h-[80%] rounded-full"></div>
+                                        </div>
+                                        <span class="text-[10px] text-slate-400 font-medium">Sel</span>
+                                    </div>
+                                     <div class="flex flex-col items-center gap-2 group">
+                                        <div class="w-3 bg-slate-100 rounded-full h-16 relative overflow-hidden group-hover:bg-brand-50 transition">
+                                            <div class="absolute bottom-0 w-full bg-gradient-to-t from-brand-500 to-brand-cyan h-[40%] rounded-full"></div>
+                                        </div>
+                                        <span class="text-[10px] text-slate-400 font-medium">Rab</span>
+                                    </div>
+                                     <div class="flex flex-col items-center gap-2 group">
+                                        <div class="w-3 bg-slate-100 rounded-full h-28 relative overflow-hidden group-hover:bg-brand-50 transition">
+                                            <div class="absolute bottom-0 w-full bg-gradient-to-t from-brand-500 to-brand-cyan h-[95%] rounded-full shadow-glow-blue"></div>
+                                        </div>
+                                        <span class="text-[10px] text-brand-600 font-bold">Kam</span>
+                                    </div>
+                                     <div class="flex flex-col items-center gap-2 group">
+                                        <div class="w-3 bg-slate-100 rounded-full h-24 relative overflow-hidden group-hover:bg-brand-50 transition">
+                                            <div class="absolute bottom-0 w-full bg-gradient-to-t from-brand-500 to-brand-cyan h-[70%] rounded-full"></div>
+                                        </div>
+                                        <span class="text-[10px] text-slate-400 font-medium">Jum</span>
+                                    </div>
+                                </div>
+                            </div>
+
+                             <div>
+                                <h3 class="font-bold text-sm text-slate-900 mb-3">Aktivitas Terbaru</h3>
+                                <div class="space-y-3">
+                                    <div class="flex items-center justify-between bg-white p-3 rounded-xl border border-slate-100">
+                                        <div class="flex items-center gap-3">
+                                            <div class="w-10 h-10 rounded-full bg-green-100 flex items-center justify-center text-green-600">
+                                                <i class="fa-solid fa-cart-shopping"></i>
+                                            </div>
+                                            <div>
+                                                <p class="text-sm font-bold text-slate-900">Penjualan Baru</p>
+                                                <p class="text-[10px] text-slate-500">Paket Premium - Budi S.</p>
+                                            </div>
+                                        </div>
+                                        <span class="text-sm font-bold text-green-600">+Rp 499k</span>
+                                    </div>
+                                     <div class="flex items-center justify-between bg-white p-3 rounded-xl border border-slate-100">
+                                        <div class="flex items-center gap-3">
+                                            <div class="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center text-blue-600">
+                                                <i class="fa-solid fa-user-plus"></i>
+                                            </div>
+                                            <div>
+                                                <p class="text-sm font-bold text-slate-900">Member Baru</p>
+                                                <p class="text-[10px] text-slate-500">Registrasi via Mobile</p>
+                                            </div>
+                                        </div>
+                                        <span class="text-sm font-bold text-slate-400">2m lalu</span>
+                                    </div>
+                                </div>
+                            </div>
+
+                        </div>
+                        <div class="absolute bottom-0 inset-x-0 h-16 bg-white border-t border-slate-50 flex justify-around items-center px-6 z-30 text-slate-400">
+                            <i class="fa-solid fa-house text-brand-600 text-xl"></i>
+                            <i class="fa-solid fa-chart-simple text-xl hover:text-brand-500 transition"></i>
+                            <div class="w-10 h-10 bg-brand-500 rounded-full flex items-center justify-center text-white shadow-md -translate-y-4">
+                                 <i class="fa-solid fa-plus"></i>
+                            </div>
+                            <i class="fa-solid fa-bell text-xl hover:text-brand-500 transition"></i>
+                             <i class="fa-solid fa-user text-xl hover:text-brand-500 transition"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <section class="py-10 border-y border-slate-100 bg-white/50 backdrop-blur-sm">
+        <div class="max-w-7xl mx-auto px-4 text-center">
+            <p class="text-xs font-bold text-slate-400 uppercase tracking-widest mb-6">Dipercaya oleh 10.000+ Tim Modern</p>
+            <div class="flex flex-wrap justify-center gap-12 opacity-50 grayscale hover:grayscale-0 transition-all duration-500">
+                <div class="flex items-center gap-2 text-xl font-bold text-slate-700"><i class="fa-brands fa-google text-brand-600"></i> Google</div>
+                <div class="flex items-center gap-2 text-xl font-bold text-slate-700"><i class="fa-brands fa-microsoft text-brand-600"></i> Microsoft</div>
+                <div class="flex items-center gap-2 text-xl font-bold text-slate-700"><i class="fa-brands fa-spotify text-brand-600"></i> Spotify</div>
+                <div class="flex items-center gap-2 text-xl font-bold text-slate-700"><i class="fa-brands fa-airbnb text-brand-600"></i> Airbnb</div>
+            </div>
+        </div>
+    </section>
+
+    <section id="fitur" class="py-24 bg-white relative">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="text-center max-w-3xl mx-auto mb-16">
+                <span class="text-brand-600 font-bold tracking-wide uppercase text-xs bg-brand-50 px-3 py-1 rounded-full">Fitur Super</span>
+                <h2 class="mt-4 text-3xl font-extrabold text-slate-900 sm:text-4xl">Semua Kebutuhan Analitik Anda</h2>
+                <p class="mt-4 text-lg text-slate-500">Kami menyederhanakan data kompleks menjadi wawasan yang dapat ditindaklanjuti.</p>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-8">
+                <div class="p-8 rounded-3xl bg-slate-50 hover:bg-white border border-slate-100 hover:border-brand-100 hover:shadow-soft-xl transition-all duration-300 group">
+                    <div class="w-14 h-14 bg-white rounded-2xl flex items-center justify-center mb-6 shadow-sm group-hover:bg-brand-600 group-hover:text-white transition-colors text-brand-600 text-2xl">
+                        <i class="fa-solid fa-bolt"></i>
+                    </div>
+                    <h3 class="text-xl font-bold text-slate-900 mb-3">Real-time Data</h3>
+                    <p class="text-slate-500 leading-relaxed">
+                        Tidak ada delay. Lihat penjualan, traffic, dan konversi saat itu juga terjadi dengan latensi di bawah 100ms.
+                    </p>
+                </div>
+
+                <div class="p-8 rounded-3xl bg-slate-50 hover:bg-white border border-slate-100 hover:border-brand-100 hover:shadow-soft-xl transition-all duration-300 group">
+                    <div class="w-14 h-14 bg-white rounded-2xl flex items-center justify-center mb-6 shadow-sm group-hover:bg-brand-600 group-hover:text-white transition-colors text-brand-600 text-2xl">
+                        <i class="fa-solid fa-wand-magic-sparkles"></i>
+                    </div>
+                    <h3 class="text-xl font-bold text-slate-900 mb-3">AI Predictions</h3>
+                    <p class="text-slate-500 leading-relaxed">
+                        Biarkan AI kami memprediksi tren masa depan bisnis Anda sehingga Anda bisa bersiap lebih awal.
+                    </p>
+                </div>
+
+                <div class="p-8 rounded-3xl bg-slate-50 hover:bg-white border border-slate-100 hover:border-brand-100 hover:shadow-soft-xl transition-all duration-300 group">
+                    <div class="w-14 h-14 bg-white rounded-2xl flex items-center justify-center mb-6 shadow-sm group-hover:bg-brand-600 group-hover:text-white transition-colors text-brand-600 text-2xl">
+                        <i class="fa-solid fa-shield-halved"></i>
+                    </div>
+                    <h3 class="text-xl font-bold text-slate-900 mb-3">Bank-Grade Security</h3>
+                    <p class="text-slate-500 leading-relaxed">
+                        Data Anda dienkripsi dengan standar AES-256. Aman dari kebocoran dan akses tidak sah.
+                    </p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <section class="py-24 bg-slate-50 overflow-hidden bg-dots">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="lg:grid lg:grid-cols-2 lg:gap-20 items-center">
+                <div class="relative mb-12 lg:mb-0">
+                    <div class="absolute -top-4 -left-4 w-24 h-24 bg-brand-200 rounded-full mix-blend-multiply filter blur-xl opacity-70 animate-blob"></div>
+                    <div class="absolute -bottom-4 -right-4 w-24 h-24 bg-cyan-200 rounded-full mix-blend-multiply filter blur-xl opacity-70 animate-blob animation-delay-2000"></div>
+                    
+                    <div class="relative bg-white p-2 rounded-2xl shadow-xl rotate-1 hover:rotate-0 transition duration-500">
+                        <div class="bg-slate-50 rounded-xl overflow-hidden border border-slate-100 p-6">
+                            <div class="flex items-center justify-between mb-6">
+                                <div class="h-4 w-32 bg-slate-200 rounded"></div>
+                                <div class="h-8 w-20 bg-brand-100 rounded text-brand-600 flex items-center justify-center text-xs font-bold">Export</div>
+                            </div>
+                            <div class="space-y-4">
+                                <div class="h-16 w-full bg-white border border-slate-100 rounded-lg shadow-sm p-4 flex items-center justify-between">
+                                    <div class="flex items-center gap-3">
+                                        <div class="w-8 h-8 rounded-full bg-brand-50"></div>
+                                        <div class="h-3 w-24 bg-slate-200 rounded"></div>
+                                    </div>
+                                    <div class="h-3 w-10 bg-green-100 rounded"></div>
+                                </div>
+                                <div class="h-16 w-full bg-white border border-slate-100 rounded-lg shadow-sm p-4 flex items-center justify-between">
+                                    <div class="flex items-center gap-3">
+                                        <div class="w-8 h-8 rounded-full bg-cyan-50"></div>
+                                        <div class="h-3 w-32 bg-slate-200 rounded"></div>
+                                    </div>
+                                    <div class="h-3 w-10 bg-green-100 rounded"></div>
+                                </div>
+                                 <div class="h-16 w-full bg-white border border-slate-100 rounded-lg shadow-sm p-4 flex items-center justify-between">
+                                    <div class="flex items-center gap-3">
+                                        <div class="w-8 h-8 rounded-full bg-purple-50"></div>
+                                        <div class="h-3 w-20 bg-slate-200 rounded"></div>
+                                    </div>
+                                    <div class="h-3 w-10 bg-green-100 rounded"></div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div>
+                    <h2 class="text-3xl font-extrabold text-slate-900 sm:text-4xl mb-6">
+                        Laporan otomatis, <br>Tanpa ribet.
+                    </h2>
+                    <p class="text-lg text-slate-600 mb-8 leading-relaxed">
+                        Hemat waktu hingga 15 jam per minggu. Jadwalkan laporan PDF dikirim otomatis ke email tim atau investor Anda setiap Senin pagi.
+                    </p>
+                    
+                    <ul class="space-y-4">
+                        <li class="flex items-start">
+                            <i class="fa-solid fa-circle-check text-brand-600 mt-1 mr-3"></i>
+                            <span class="text-slate-700 font-medium">Export ke PDF, CSV, dan Excel</span>
+                        </li>
+                        <li class="flex items-start">
+                            <i class="fa-solid fa-circle-check text-brand-600 mt-1 mr-3"></i>
+                            <span class="text-slate-700 font-medium">Kustomisasi branding laporan</span>
+                        </li>
+                        <li class="flex items-start">
+                            <i class="fa-solid fa-circle-check text-brand-600 mt-1 mr-3"></i>
+                            <span class="text-slate-700 font-medium">Integrasi langsung ke Slack & Email</span>
+                        </li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <section id="testimoni" class="py-24 bg-white">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <h2 class="text-3xl font-extrabold text-center text-slate-900 mb-16">Kata Mereka</h2>
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-8">
+                <div class="bg-white p-8 rounded-3xl border border-slate-100 shadow-lg shadow-slate-200/50 relative">
+                    <i class="fa-solid fa-quote-right absolute top-6 right-6 text-4xl text-slate-100"></i>
+                    <div class="flex items-center gap-4 mb-6">
+                        <img src="https://i.pravatar.cc/150?img=32" alt="User" class="w-12 h-12 rounded-full object-cover">
+                        <div>
+                            <h4 class="font-bold text-slate-900">Sarah Wijaya</h4>
+                            <p class="text-xs text-slate-500">CEO, TechStart</p>
+                        </div>
+                    </div>
+                    <p class="text-slate-600 italic">"Dashboard mobile-nya benar-benar game changer. Saya bisa memantau performa tim sales sambil meeting di luar kantor."</p>
+                    <div class="flex text-yellow-400 text-sm mt-4 gap-1">
+                        <i class="fa-solid fa-star"></i><i class="fa-solid fa-star"></i><i class="fa-solid fa-star"></i><i class="fa-solid fa-star"></i><i class="fa-solid fa-star"></i>
+                    </div>
+                </div>
+
+                 <div class="bg-brand-600 p-8 rounded-3xl shadow-xl shadow-brand-500/40 relative transform md:-translate-y-4">
+                    <i class="fa-solid fa-quote-right absolute top-6 right-6 text-4xl text-brand-500"></i>
+                    <div class="flex items-center gap-4 mb-6">
+                        <img src="https://i.pravatar.cc/150?img=11" alt="User" class="w-12 h-12 rounded-full object-cover border-2 border-brand-400">
+                        <div>
+                            <h4 class="font-bold text-white">Budi Santoso</h4>
+                            <p class="text-xs text-brand-200">Manager Operasional</p>
+                        </div>
+                    </div>
+                    <p class="text-brand-50 italic">"UI-nya sangat bersih dan cepat. Tidak perlu tutorial panjang, tim saya langsung mengerti cara pakainya dalam 5 menit."</p>
+                    <div class="flex text-yellow-400 text-sm mt-4 gap-1">
+                        <i class="fa-solid fa-star"></i><i class="fa-solid fa-star"></i><i class="fa-solid fa-star"></i><i class="fa-solid fa-star"></i><i class="fa-solid fa-star"></i>
+                    </div>
+                </div>
+
+                 <div class="bg-white p-8 rounded-3xl border border-slate-100 shadow-lg shadow-slate-200/50 relative">
+                    <i class="fa-solid fa-quote-right absolute top-6 right-6 text-4xl text-slate-100"></i>
+                    <div class="flex items-center gap-4 mb-6">
+                        <img src="https://i.pravatar.cc/150?img=5" alt="User" class="w-12 h-12 rounded-full object-cover">
+                        <div>
+                            <h4 class="font-bold text-slate-900">Jessica Lin</h4>
+                            <p class="text-xs text-slate-500">Freelancer</p>
+                        </div>
+                    </div>
+                    <p class="text-slate-600 italic">"Sangat membantu untuk tracking invoice dan pengeluaran klien. Fitur notifikasinya sangat akurat."</p>
+                    <div class="flex text-yellow-400 text-sm mt-4 gap-1">
+                        <i class="fa-solid fa-star"></i><i class="fa-solid fa-star"></i><i class="fa-solid fa-star"></i><i class="fa-solid fa-star"></i><i class="fa-solid fa-star"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <section id="pricing" class="py-24 bg-slate-50">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+             <div class="text-center max-w-3xl mx-auto mb-16">
+                <h2 class="text-3xl font-extrabold text-slate-900 sm:text-4xl">Investasi Cerdas</h2>
+                <p class="mt-4 text-slate-500">Pilih paket yang sesuai dengan skala bisnis Anda.</p>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-8 max-w-5xl mx-auto">
+                <div class="bg-white p-8 rounded-3xl border border-slate-200 shadow-sm">
+                    <h3 class="text-lg font-bold text-slate-900">Starter</h3>
+                    <div class="my-4"><span class="text-4xl font-extrabold text-slate-900">Rp 0</span><span class="text-slate-500">/bln</span></div>
+                    <p class="text-sm text-slate-500 mb-6">Untuk individu & freelancer.</p>
+                    <a href="{{ url_for('login') }}" class="block w-full py-3 px-4 bg-slate-100 text-slate-700 font-bold rounded-xl text-center hover:bg-slate-200 transition">Mulai Gratis</a>
+                    <ul class="mt-8 space-y-3 text-sm text-slate-600">
+                        <li class="flex gap-2"><i class="fa-solid fa-check text-green-500 mt-1"></i> 1 User</li>
+                        <li class="flex gap-2"><i class="fa-solid fa-check text-green-500 mt-1"></i> Basic Analytics</li>
+                        <li class="flex gap-2"><i class="fa-solid fa-check text-green-500 mt-1"></i> 3 Hari Riwayat Data</li>
+                    </ul>
+                </div>
+
+                <div class="bg-white p-8 rounded-3xl border-2 border-brand-500 shadow-xl relative transform md:scale-105 z-10">
+                    <span class="absolute top-0 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-brand-600 text-white text-xs font-bold px-3 py-1 rounded-full uppercase tracking-wide">Paling Laris</span>
+                    <h3 class="text-lg font-bold text-slate-900">Professional</h3>
+                    <div class="my-4"><span class="text-4xl font-extrabold text-slate-900">Rp 99rb</span><span class="text-slate-500">/bln</span></div>
+                    <p class="text-sm text-slate-500 mb-6">Untuk startup & tim kecil.</p>
+                    <a href="{{ url_for('login') }}" class="block w-full py-3 px-4 bg-brand-600 text-white font-bold rounded-xl text-center hover:bg-brand-700 transition shadow-lg shadow-brand-500/30">Coba Gratis 14 Hari</a>
+                    <ul class="mt-8 space-y-3 text-sm text-slate-600">
+                        <li class="flex gap-2"><i class="fa-solid fa-check text-green-500 mt-1"></i> Hingga 5 User</li>
+                        <li class="flex gap-2"><i class="fa-solid fa-check text-green-500 mt-1"></i> Advanced Analytics</li>
+                        <li class="flex gap-2"><i class="fa-solid fa-check text-green-500 mt-1"></i> Export PDF & Excel</li>
+                        <li class="flex gap-2"><i class="fa-solid fa-check text-green-500 mt-1"></i> Prioritas Support</li>
+                    </ul>
+                </div>
+
+                <div class="bg-white p-8 rounded-3xl border border-slate-200 shadow-sm">
+                    <h3 class="text-lg font-bold text-slate-900">Business</h3>
+                    <div class="my-4"><span class="text-4xl font-extrabold text-slate-900">Rp 499rb</span><span class="text-slate-500">/bln</span></div>
+                    <p class="text-sm text-slate-500 mb-6">Untuk perusahaan berkembang.</p>
+                    <a href="#" class="block w-full py-3 px-4 bg-slate-100 text-slate-700 font-bold rounded-xl text-center hover:bg-slate-200 transition">Hubungi Sales</a>
+                    <ul class="mt-8 space-y-3 text-sm text-slate-600">
+                        <li class="flex gap-2"><i class="fa-solid fa-check text-green-500 mt-1"></i> Unlimited User</li>
+                        <li class="flex gap-2"><i class="fa-solid fa-check text-green-500 mt-1"></i> Custom API Integrations</li>
+                        <li class="flex gap-2"><i class="fa-solid fa-check text-green-500 mt-1"></i> Dedicated Manager</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <section class="py-20 px-4">
+        <div class="max-w-5xl mx-auto bg-brand-600 rounded-[2.5rem] p-10 md:p-20 text-center relative overflow-hidden shadow-2xl shadow-brand-600/40">
+            <div class="absolute top-0 left-0 -translate-x-1/2 -translate-y-1/2 w-64 h-64 bg-white opacity-10 rounded-full blur-3xl"></div>
+            <div class="absolute bottom-0 right-0 translate-x-1/2 translate-y-1/2 w-80 h-80 bg-brand-400 opacity-20 rounded-full blur-3xl"></div>
+            
+            <div class="relative z-10">
+                <h2 class="text-3xl md:text-5xl font-extrabold text-white mb-6">Siap untuk Upgrade Bisnis?</h2>
+                <p class="text-brand-100 text-lg mb-10 max-w-2xl mx-auto">Bergabunglah dengan ribuan pebisnis modern lainnya. Download sekarang dan rasakan kemudahan mengelola data.</p>
+                
+                <div class="flex flex-col sm:flex-row justify-center gap-4">
+                     <button class="bg-white text-brand-700 px-8 py-4 rounded-full font-bold text-lg hover:bg-slate-50 transition shadow-lg transform hover:-translate-y-1">
+                        Download Aplikasi
+                    </button>
+                    <button class="bg-transparent border border-white text-white px-8 py-4 rounded-full font-bold text-lg hover:bg-white/10 transition">
+                        Lihat Demo
+                    </button>
+                </div>
+                <p class="mt-6 text-sm text-brand-200 opacity-80">Tidak perlu kartu kredit untuk mencoba.</p>
+            </div>
+        </div>
+    </section>
+
+    <footer class="bg-white border-t border-slate-100 pt-16 pb-8">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="grid grid-cols-1 md:grid-cols-4 gap-12 mb-12">
+                <div class="col-span-1 md:col-span-1">
+                    <div class="flex items-center gap-2 mb-4">
+                        <div class="w-8 h-8 bg-brand-600 rounded-lg flex items-center justify-center text-white text-sm">
+                            <i class="fa-solid fa-chart-pie"></i>
+                        </div>
+                        <span class="font-extrabold text-xl text-slate-900 tracking-tight">Nusa Niaga</span>
+                    </div>
+                    <p class="text-slate-500 text-sm leading-relaxed">
+                        Platform analitik modern untuk bisnis yang bergerak cepat. Data akurat, keputusan tepat.
+                    </p>
+                </div>
+                <div>
+                    <h4 class="font-bold text-slate-900 mb-4">Produk</h4>
+                    <ul class="space-y-2 text-slate-500 text-sm">
+                        <li><a href="#" class="hover:text-brand-600 transition">Fitur</a></li>
+                        <li><a href="#" class="hover:text-brand-600 transition">Mobile App</a></li>
+                        <li><a href="#" class="hover:text-brand-600 transition">Harga</a></li>
+                    </ul>
+                </div>
+                <div>
+                    <h4 class="font-bold text-slate-900 mb-4">Perusahaan</h4>
+                    <ul class="space-y-2 text-slate-500 text-sm">
+                        <li><a href="#" class="hover:text-brand-600 transition">Tentang Kami</a></li>
+                        <li><a href="#" class="hover:text-brand-600 transition">Karir</a></li>
+                        <li><a href="#" class="hover:text-brand-600 transition">Blog</a></li>
+                    </ul>
+                </div>
+                <div>
+                    <h4 class="font-bold text-slate-900 mb-4">Legal</h4>
+                    <ul class="space-y-2 text-slate-500 text-sm">
+                        <li><a href="#" class="hover:text-brand-600 transition">Privacy Policy</a></li>
+                        <li><a href="#" class="hover:text-brand-600 transition">Terms of Service</a></li>
+                    </ul>
+                </div>
+            </div>
+            <div class="border-t border-slate-100 pt-8 flex flex-col md:flex-row justify-between items-center">
+                <p class="text-slate-400 text-sm">© 2024 Nusa Niaga. All rights reserved.</p>
+                <div class="flex space-x-6 mt-4 md:mt-0 text-slate-400">
+                    <a href="#" class="hover:text-brand-600 transition"><i class="fa-brands fa-twitter"></i></a>
+                    <a href="#" class="hover:text-brand-600 transition"><i class="fa-brands fa-instagram"></i></a>
+                    <a href="#" class="hover:text-brand-600 transition"><i class="fa-brands fa-linkedin"></i></a>
+                </div>
+            </div>
+        </div>
+    </footer>
+
+</body>
+</html>

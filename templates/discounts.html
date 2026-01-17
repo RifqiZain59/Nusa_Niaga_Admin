@@ -1,51 +1,246 @@
 {% extends 'base.html' %}
+
 {% block content %}
-<div class="row">
-    <div class="col-md-4 mb-4">
-        <div class="card p-4 h-100 border-0 shadow-sm">
-            <h5 class="fw-bold text-primary mb-3">Buat Voucher Baru</h5>
-            <form action="{{ url_for('discounts') }}" method="POST">
-                <div class="mb-3">
-                    <label class="form-label text-muted small fw-bold">KODE UNIK</label>
-                    <input type="text" name="code" class="form-control text-uppercase" placeholder="Contoh: MERDEKA45" required>
-                </div>
-                <div class="mb-3">
-                    <label class="form-label text-muted small fw-bold">NOMINAL DISKON (Rp)</label>
-                    <input type="number" name="amount" class="form-control" placeholder="10000" required>
-                </div>
-                <button type="submit" class="btn btn-primary w-100"><i class="fas fa-save me-2"></i>Simpan Voucher</button>
-            </form>
+<style>
+    @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap');
+    @import url('https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&display=swap'); /* Font untuk Kode */
+    
+    body {
+        font-family: 'Plus Jakarta Sans', sans-serif;
+        background-color: #f3f4f6;
+    }
+
+    /* === CARD STYLES === */
+    .card-premium {
+        background: white;
+        border: 1px solid #e5e7eb;
+        border-radius: 16px;
+        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+        overflow: hidden;
+    }
+
+    /* === FORM STYLES === */
+    .form-label-bold {
+        font-size: 0.75rem;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        font-weight: 700;
+        color: #6b7280;
+        margin-bottom: 0.5rem;
+    }
+    
+    .form-control-clean {
+        background-color: #f9fafb;
+        border: 1px solid #e5e7eb;
+        padding: 0.75rem 1rem;
+        border-radius: 10px;
+        font-size: 0.9rem;
+        transition: all 0.2s;
+    }
+    .form-control-clean:focus {
+        background-color: white;
+        border-color: #4f46e5;
+        box-shadow: 0 0 0 4px rgba(79, 70, 229, 0.1);
+        outline: none;
+    }
+
+    /* === BUTTONS === */
+    .btn-indigo {
+        background-color: #4f46e5;
+        border: none;
+        color: white;
+        font-weight: 600;
+        padding: 0.75rem;
+        border-radius: 10px;
+        transition: transform 0.2s;
+    }
+    .btn-indigo:hover {
+        background-color: #4338ca;
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(79, 70, 229, 0.3);
+        color: white;
+    }
+
+    /* === STAT CARD (Total Voucher) === */
+    .stat-card {
+        background: linear-gradient(135deg, #ec4899 0%, #db2777 100%); /* Pink Gradient for Voucher */
+        border-radius: 16px;
+        color: white;
+        position: relative;
+        overflow: hidden;
+        border: none;
+    }
+    .icon-watermark {
+        position: absolute; bottom: -15px; right: -15px;
+        font-size: 6rem; color: white; opacity: 0.15;
+        transform: rotate(-15deg); pointer-events: none;
+    }
+
+    /* === TICKET BADGE STYLE === */
+    .ticket-badge {
+        display: inline-block;
+        padding: 6px 16px;
+        background-color: #eff6ff;
+        color: #2563eb;
+        border: 2px dashed #bfdbfe;
+        border-radius: 8px;
+        font-family: 'Space Mono', monospace; /* Font coding/tiket */
+        font-weight: 700;
+        letter-spacing: 1px;
+        font-size: 0.9rem;
+        position: relative;
+    }
+    /* Efek lubang tiket (opsional, visual only) */
+    .ticket-badge::before, .ticket-badge::after {
+        content: ''; position: absolute; top: 50%; transform: translateY(-50%);
+        width: 8px; height: 8px; background-color: white; border-radius: 50%;
+    }
+    .ticket-badge::before { left: -5px; }
+    .ticket-badge::after { right: -5px; }
+
+    /* === TABLE === */
+    .table-header {
+        background-color: #f9fafb; font-size: 0.75rem; text-transform: uppercase;
+        color: #6b7280; font-weight: 600; border-bottom: 1px solid #e5e7eb;
+    }
+    .table-row { border-bottom: 1px solid #f3f4f6; transition: background 0.15s; }
+    .table-row:hover { background-color: #f8fafc; }
+
+    .btn-icon-danger {
+        width: 34px; height: 34px; display: inline-flex; align-items: center; justify-content: center;
+        border-radius: 8px; color: #ef4444; background: white; border: 1px solid #e5e7eb; transition: all 0.2s;
+    }
+    .btn-icon-danger:hover { background-color: #fef2f2; border-color: #fecaca; color: #dc2626; }
+</style>
+
+<div class="container py-5" style="max-width: 1100px;">
+    
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h3 class="fw-bold text-dark mb-1">Manajemen Promo</h3>
+            <p class="text-muted small mb-0">Kelola kode voucher dan diskon untuk pelanggan.</p>
         </div>
     </div>
 
-    <div class="col-md-8">
-        <div class="card p-4 border-0 shadow-sm">
-            <h5 class="fw-bold text-dark mb-3">Daftar Voucher Aktif</h5>
-            <div class="table-responsive">
-                <table class="table table-hover align-middle">
-                    <thead class="table-light">
-                        <tr>
-                            <th>Kode Voucher</th>
-                            <th>Nilai Diskon</th>
-                            <th>Status</th>
-                            <th class="text-end">Aksi</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {% for v in vouchers %}
-                        <tr>
-                            <td><span class="badge bg-primary fs-6">{{ v.code }}</span></td>
-                            <td class="fw-bold text-success">Rp {{ "{:,.0f}".format(v.discount_amount) }}</td>
-                            <td><span class="badge bg-success bg-opacity-10 text-success">Aktif</span></td>
-                            <td class="text-end">
-                                <a href="{{ url_for('delete_discount', id=v.id) }}" class="btn btn-sm btn-outline-danger" onclick="return confirm('Hapus voucher ini?')"><i class="fas fa-trash"></i></a>
-                            </td>
-                        </tr>
-                        {% else %}
-                        <tr><td colspan="4" class="text-center text-muted py-4">Belum ada kode promo.</td></tr>
-                        {% endfor %}
-                    </tbody>
-                </table>
+    <div class="row g-4">
+        
+        <div class="col-lg-4">
+            <div class="card-premium p-4 sticky-top" style="top: 2rem; z-index: 10;">
+                <div class="d-flex align-items-center mb-4">
+                    <div class="rounded-3 p-2 me-3" style="background: #fdf2f8; color: #db2777;">
+                        <i class="fas fa-ticket-alt fa-lg"></i>
+                    </div>
+                    <div>
+                        <h6 class="fw-bold text-dark mb-0">Buat Voucher</h6>
+                        <small class="text-muted">Generate kode baru</small>
+                    </div>
+                </div>
+
+                <form action="{{ url_for('discounts') }}" method="POST" autocomplete="off">
+                    <div class="mb-4">
+                        <label class="form-label-bold">Kode Voucher</label>
+                        <div class="input-group">
+                            <span class="input-group-text bg-light border-end-0 border-e5 rounded-start-3 ps-3">
+                                <i class="fas fa-barcode text-muted"></i>
+                            </span>
+                            <input type="text" name="code" class="form-control form-control-clean border-start-0 ps-2" 
+                                   placeholder="MERDEKA45" 
+                                   style="text-transform: uppercase; font-weight: 600;" 
+                                   required
+                                   onkeyup="this.value = this.value.toUpperCase();">
+                        </div>
+                        <div class="form-text small mt-1"><i class="fas fa-info-circle me-1"></i>Kode otomatis kapital & unik.</div>
+                    </div>
+
+                    <div class="mb-4">
+                        <label class="form-label-bold">Potongan Harga (Rp)</label>
+                        <div class="input-group">
+                            <span class="input-group-text bg-light border-end-0 border-e5 rounded-start-3 ps-3 fw-bold text-muted">Rp</span>
+                            <input type="number" name="amount" class="form-control form-control-clean border-start-0 ps-2" placeholder="0" required>
+                        </div>
+                    </div>
+
+                    <button type="submit" class="btn btn-indigo w-100 d-flex align-items-center justify-content-center gap-2">
+                        <i class="fas fa-check-circle"></i> Terbitkan Voucher
+                    </button>
+                </form>
+            </div>
+        </div>
+
+        <div class="col-lg-8">
+            
+            <div class="stat-card p-4 mb-4 shadow-sm">
+                <div class="position-relative" style="z-index: 2;">
+                    <h6 class="text-white opacity-75 text-uppercase fw-bold mb-2" style="font-size: 0.75rem; letter-spacing: 1px;">Voucher Aktif</h6>
+                    <h2 class="mb-0 fw-bold display-4">{{ vouchers|length }}</h2>
+                    <span class="small text-white opacity-75">Kode promo tersedia</span>
+                </div>
+                <i class="fas fa-tags icon-watermark"></i>
+            </div>
+
+            <div class="card-premium">
+                <div class="p-4 border-bottom bg-white d-flex justify-content-between align-items-center">
+                    <h6 class="fw-bold m-0 text-dark">Daftar Kode Promo</h6>
+                    <span class="badge bg-gray-100 text-dark border">
+                        <i class="fas fa-list me-1"></i> List
+                    </span>
+                </div>
+
+                <div class="table-responsive">
+                    <table class="table mb-0 align-middle w-100">
+                        <thead class="table-header">
+                            <tr>
+                                <th class="ps-4 py-3">Kode Unik</th>
+                                <th class="py-3">Nominal Potongan</th>
+                                <th class="py-3 text-center">Status</th>
+                                <th class="py-3 text-end pe-4">Kontrol</th>
+                            </tr>
+                        </thead>
+                        <tbody class="bg-white">
+                            {% for v in vouchers %}
+                            <tr class="table-row">
+                                <td class="ps-4 py-3">
+                                    <span class="ticket-badge">
+                                        {{ v.code }}
+                                    </span>
+                                </td>
+                                
+                                <td>
+                                    <div class="d-flex align-items-center text-success fw-bold">
+                                        <i class="fas fa-arrow-down me-2 small"></i>
+                                        Rp {{ "{:,.0f}".format(v.discount_amount).replace(',', '.') }}
+                                    </div>
+                                </td>
+
+                                <td class="text-center">
+                                    <span class="badge bg-success bg-opacity-10 text-success border border-success border-opacity-25 rounded-pill px-3">
+                                        Active
+                                    </span>
+                                </td>
+
+                                <td class="text-end pe-4">
+                                    <a href="{{ url_for('delete_discount', id=v.id) }}" 
+                                       class="btn-icon-danger ms-auto" 
+                                       onclick="return confirm('Non-aktifkan voucher {{ v.code }}?')"
+                                       title="Hapus Voucher">
+                                        <i class="fas fa-trash-alt small"></i>
+                                    </a>
+                                </td>
+                            </tr>
+                            {% else %}
+                            <tr>
+                                <td colspan="4" class="text-center py-5">
+                                    <div class="py-3 opacity-50">
+                                        <i class="fas fa-ticket-alt fa-3x text-secondary mb-3"></i>
+                                        <h6 class="fw-bold text-secondary">Belum ada promo</h6>
+                                        <p class="small text-muted">Buat kode diskon pertama Anda sekarang.</p>
+                                    </div>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
             </div>
         </div>
     </div>

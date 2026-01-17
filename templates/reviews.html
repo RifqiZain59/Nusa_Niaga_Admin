@@ -1,110 +1,304 @@
 {% extends 'base.html' %}
 
 {% block content %}
-<div class="card p-4 border-0 shadow-sm rounded-3">
+
+{% set total_reviews = reviews|length %}
+{% set total_stars = reviews|sum(attribute='rating') %}
+{% set avg_rating = (total_stars / total_reviews) if total_reviews > 0 else 0.0 %}
+
+<style>
+    @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap');
     
-    <div class="d-flex justify-content-between align-items-center mb-4">
-        <h4 class="fw-bold text-primary mb-0">
-            <i class="fas fa-star me-2"></i>Ulasan Produk
-        </h4>
-        <span class="badge bg-primary bg-opacity-10 text-primary px-3 py-2 rounded-pill">
-            Total: {{ reviews|length }} Ulasan
-        </span>
+    body {
+        font-family: 'Plus Jakarta Sans', sans-serif;
+        background-color: #f3f4f6;
+    }
+
+    /* === CARD STYLES === */
+    .card-premium {
+        background: white;
+        border: 1px solid #e5e7eb;
+        border-radius: 16px;
+        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+        overflow: hidden;
+    }
+
+    /* === STAT CARDS === */
+    /* Warna Amber/Emas untuk Rating */
+    .stat-card-amber {
+        background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+        color: white;
+        border-radius: 16px;
+        position: relative;
+        overflow: hidden;
+        border: none;
+        box-shadow: 0 10px 15px -3px rgba(245, 158, 11, 0.3);
+        transition: transform 0.2s;
+    }
+    .stat-card-amber:hover { transform: translateY(-5px); }
+
+    .stat-card-white {
+        background: white;
+        border: 1px solid #e5e7eb;
+        border-radius: 16px;
+        position: relative;
+        overflow: hidden;
+        color: #1f2937;
+        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+    }
+
+    /* ICON WATERMARK */
+    .icon-watermark {
+        position: absolute; bottom: -15px; right: -15px;
+        font-size: 6rem; color: white; opacity: 0.15;
+        transform: rotate(-15deg); pointer-events: none;
+    }
+    .icon-watermark-dark { color: #1f2937; opacity: 0.05; }
+
+    /* === TABLE & ELEMENTS === */
+    .table-header {
+        background-color: #f9fafb; font-size: 0.75rem; text-transform: uppercase;
+        color: #6b7280; font-weight: 600; border-bottom: 1px solid #e5e7eb;
+    }
+    .table-row { border-bottom: 1px solid #f3f4f6; transition: background 0.15s; }
+    .table-row:hover { background-color: #fffbeb; } /* Kuning pudar saat hover */
+    .table-row td { padding: 1rem; vertical-align: middle; }
+
+    /* Avatar Styles */
+    .customer-avatar-img {
+        width: 40px; height: 40px; object-fit: cover; border-radius: 50%;
+        border: 2px solid white; box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+    }
+    .customer-avatar-initial {
+        width: 40px; height: 40px; border-radius: 50%;
+        background: #f3f4f6; color: #6b7280;
+        display: flex; align-items: center; justify-content: center;
+        font-weight: bold; border: 1px solid #e5e7eb;
+    }
+
+    /* Filter Buttons */
+    .btn-filter {
+        border: 1px solid #e5e7eb; background: white; color: #6b7280;
+        border-radius: 20px; font-size: 0.85rem; padding: 5px 15px;
+        transition: all 0.2s;
+    }
+    .btn-filter:hover, .btn-filter.active {
+        background: #fef3c7; color: #d97706; border-color: #fcd34d;
+    }
+</style>
+
+<div class="container py-5" style="max-width: 1200px;">
+
+    <div class="d-flex justify-content-between align-items-end mb-4">
+        <div>
+            <h3 class="fw-bold text-dark mb-1">Ulasan & Reputasi</h3>
+            <p class="text-muted small mb-0">Pantau feedback pelanggan terhadap produk Anda.</p>
+        </div>
     </div>
 
-    <div class="table-responsive">
-        <table class="table table-hover align-middle">
-            <thead class="bg-light text-secondary text-uppercase small fw-bold">
-                <tr>
-                    <th class="ps-3">Tanggal</th>
-                    <th>Pelanggan</th>
-                    <th>Produk</th>
-                    <th>Rating</th>
-                    <th style="width: 30%;">Komentar</th>
-                    <th class="text-center">Aksi</th>
-                </tr>
-            </thead>
-            <tbody class="border-top-0">
-                {% for r in reviews %}
-                <tr>
-                    <td class="ps-3 text-muted small">
-                        <i class="far fa-calendar-alt me-1"></i>
-                        {{ r.created_at.strftime('%d/%m/%Y') }}
-                        <br>
-                        <small>{{ r.created_at.strftime('%H:%M') }}</small>
-                    </td>
+    <div class="row g-4 mb-4">
+        <div class="col-md-6 col-lg-4">
+            <div class="stat-card-amber p-4 h-100">
+                <div class="position-relative z-1">
+                    <h6 class="text-white opacity-75 text-uppercase fw-bold mb-2" style="font-size: 0.75rem; letter-spacing: 1px;">Rata-rata Toko</h6>
+                    <div class="d-flex align-items-end gap-2">
+                        <h2 class="mb-0 fw-bold display-4">{{ "%.1f"|format(avg_rating) }}</h2>
+                        <span class="fs-4 text-white opacity-75 mb-2">/ 5.0</span>
+                    </div>
+                    <div class="mt-2">
+                        {% for i in range(avg_rating|int) %}<i class="fas fa-star text-white"></i>{% endfor %}
+                        {% if (avg_rating % 1) >= 0.5 %}<i class="fas fa-star-half-alt text-white"></i>{% endif %}
+                    </div>
+                </div>
+                <i class="fas fa-star icon-watermark"></i>
+            </div>
+        </div>
 
-                    <td>
-                        <div class="d-flex align-items-center">
-                            {% if r.customer_image and r.customer_image|length > 100 %}
-                                <img src="data:image/jpeg;base64,{{ r.customer_image }}" 
-                                     class="rounded-circle shadow-sm border me-2" 
-                                     style="width: 35px; height: 35px; object-fit: cover;">
-                            {% else %}
-                                <div class="rounded-circle bg-light text-secondary d-flex align-items-center justify-content-center me-2 border" 
-                                     style="width: 35px; height: 35px;">
-                                    <i class="fas fa-user small"></i>
+        <div class="col-md-6 col-lg-4">
+            <div class="stat-card-white p-4 h-100">
+                <div class="position-relative z-1">
+                    <h6 class="text-muted text-uppercase fw-bold mb-2" style="font-size: 0.75rem; letter-spacing: 1px;">Total Feedback</h6>
+                    <h2 class="mb-0 fw-bold text-dark display-6">{{ total_reviews }}</h2>
+                    <span class="small text-muted">Ulasan masuk</span>
+                </div>
+                <i class="fas fa-comments icon-watermark icon-watermark-dark"></i>
+            </div>
+        </div>
+        
+        <div class="col-md-6 col-lg-4">
+            <div class="stat-card-white p-4 h-100 d-flex flex-column justify-content-center">
+                <h6 class="text-muted text-uppercase fw-bold mb-2" style="font-size: 0.7rem;">Kepuasan Pelanggan</h6>
+                
+                <div class="progress" style="height: 8px; margin-bottom: 8px;">
+                    {# --- FIX: Menggunakan default(0) agar tidak error jika data kosong --- #}
+                    {% set safe_rating = avg_rating | default(0) | float %}
+                    {% set satisfaction_pct = (safe_rating / 5) * 100 %}
+                    
+                    <div class="progress-bar bg-warning" role="progressbar" 
+                         style="width: {{ satisfaction_pct }}%"
+                         aria-valuenow="{{ satisfaction_pct }}" aria-valuemin="0" aria-valuemax="100">
+                    </div>
+                </div>
+
+                <div class="d-flex justify-content-between small text-muted">
+                    <span>Kurang</span>
+                    <span class="fw-bold text-dark">{{ "%.0f"|format(satisfaction_pct) }}% Positif</span>
+                    <span>Sangat Baik</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="card-premium">
+        <div class="p-3 border-bottom bg-white d-flex flex-column flex-md-row justify-content-between align-items-center gap-3">
+            
+            <div class="d-flex gap-2 overflow-auto" style="white-space: nowrap;">
+                <button class="btn-filter active" onclick="filterReviews('all', this)">Semua</button>
+                <button class="btn-filter" onclick="filterReviews('5', this)"><i class="fas fa-star text-warning me-1"></i>5</button>
+                <button class="btn-filter" onclick="filterReviews('4', this)"><i class="fas fa-star text-warning me-1"></i>4</button>
+                <button class="btn-filter" onclick="filterReviews('low', this)">Low (<3)</button>
+            </div>
+
+            <div class="position-relative" style="min-width: 250px;">
+                <i class="fas fa-search text-secondary position-absolute top-50 start-0 translate-middle-y ms-3 small"></i>
+                <input type="text" id="searchInput" class="form-control bg-light border-0 ps-5 rounded-pill" placeholder="Cari ulasan...">
+            </div>
+        </div>
+
+        <div class="table-responsive">
+            <table class="table mb-0 align-middle w-100" id="reviewsTable">
+                <thead class="table-header">
+                    <tr>
+                        <th class="ps-4 py-3">Pelanggan</th>
+                        <th class="py-3">Rating & Produk</th>
+                        <th class="py-3" style="width: 40%;">Ulasan</th>
+                        <th class="py-3">Waktu</th>
+                        <th class="py-3 text-end pe-4">Aksi</th>
+                    </tr>
+                </thead>
+                <tbody class="bg-white" id="reviewsBody">
+                    {% for r in reviews %}
+                    <tr class="table-row review-row" data-rating="{{ r.rating }}">
+                        <td class="ps-4">
+                            <div class="d-flex align-items-center gap-3">
+                                {% if r.customer_image and r.customer_image|length > 100 %}
+                                    <img src="data:image/jpeg;base64,{{ r.customer_image }}" class="customer-avatar-img">
+                                {% else %}
+                                    <div class="customer-avatar-initial">
+                                        {{ (r.customer_name or r.customer.name or '?')[:1] }}
+                                    </div>
+                                {% endif %}
+                                <div>
+                                    <div class="fw-bold text-dark customer-name">{{ r.customer_name or (r.customer.name if r.customer else 'Pelanggan') }}</div>
+                                    <span class="badge bg-light text-secondary border rounded-pill" style="font-size: 0.65rem;">Verified Buyer</span>
                                 </div>
+                            </div>
+                        </td>
+
+                        <td>
+                            <div class="mb-1 text-warning small" style="letter-spacing: -1px;">
+                                {% for i in range(r.rating) %}<i class="fas fa-star"></i>{% endfor %}
+                                {% for i in range(5 - r.rating) %}<i class="far fa-star text-muted opacity-25"></i>{% endfor %}
+                                <span class="text-dark fw-bold ms-1">{{ r.rating }}.0</span>
+                            </div>
+                            <div class="text-muted small product-name">
+                                <i class="fas fa-tag me-1 opacity-50"></i> {{ r.product.name if r.product else 'Produk Dihapus' }}
+                            </div>
+                        </td>
+
+                        <td>
+                            {% if r.comment %}
+                                <div class="p-2 bg-light rounded-3 border border-light position-relative text-dark small" style="font-style: italic;">
+                                    <i class="fas fa-quote-left text-muted opacity-25 position-absolute top-0 start-0 m-1"></i>
+                                    "{{ r.comment }}"
+                                </div>
+                            {% else %}
+                                <span class="text-muted opacity-50 small">- Tidak ada komentar -</span>
                             {% endif %}
-                            
-                            <div class="fw-bold text-dark">
-                                {{ r.customer_name or (r.customer.name if r.customer else 'Pelanggan') }}
+                        </td>
+
+                        <td>
+                            <div class="text-muted small">{{ r.created_at.strftime('%d %b %Y') }}</div>
+                            <div class="text-muted x-small opacity-75">{{ r.created_at.strftime('%H:%M') }}</div>
+                        </td>
+
+                        <td class="text-end pe-4">
+                            <a href="{{ url_for('delete_review', id=r.id) }}" 
+                               class="btn btn-sm btn-white border text-danger shadow-sm rounded-3" 
+                               onclick="return confirm('Hapus ulasan ini secara permanen?')"
+                               title="Hapus">
+                                <i class="fas fa-trash-alt"></i>
+                            </a>
+                        </td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="5" class="text-center py-5">
+                            <div class="d-flex flex-column align-items-center justify-content-center">
+                                <div class="bg-light rounded-circle p-4 mb-3">
+                                    <i class="fas fa-star-half-alt fa-3x text-warning opacity-50"></i>
+                                </div>
+                                <h6 class="fw-bold text-dark">Belum ada Ulasan</h6>
+                                <p class="text-muted small">Tunggu pelanggan memberikan feedback.</p>
                             </div>
-                        </div>
-                    </td>
-
-                    <td>
-                        <div class="d-flex align-items-center">
-                            <div class="bg-light rounded p-1 me-2 border">
-                                <i class="fas fa-box text-muted"></i>
-                            </div>
-                            <span class="fw-bold text-dark" style="font-size: 0.9rem;">
-                                {{ r.product.name if r.product else 'Produk Dihapus' }}
-                            </span>
-                        </div>
-                    </td>
-
-                    <td>
-                        <div class="text-warning small">
-                            {% for i in range(r.rating) %}
-                                <i class="fas fa-star"></i>
-                            {% endfor %}
-                            {% for i in range(5 - r.rating) %}
-                                <i class="far fa-star text-muted opacity-25"></i>
-                            {% endfor %}
-                        </div>
-                        <span class="small fw-bold text-dark">{{ r.rating }}.0</span>
-                    </td>
-
-                    <td>
-                        {% if r.comment %}
-                            <span class="text-muted small fst-italic">"{{ r.comment }}"</span>
-                        {% else %}
-                            <span class="text-muted opacity-50 small">- Tidak ada komentar -</span>
-                        {% endif %}
-                    </td>
-
-                    <td class="text-center">
-                        <a href="{{ url_for('delete_review', id=r.id) }}" 
-                           class="btn btn-sm btn-light text-danger border shadow-sm" 
-                           onclick="return confirm('Yakin ingin menghapus ulasan ini?')"
-                           title="Hapus Ulasan">
-                            <i class="fas fa-trash-alt"></i>
-                        </a>
-                    </td>
-                </tr>
-                {% else %}
-                <tr>
-                    <td colspan="6" class="text-center py-5">
-                        <div class="text-muted opacity-50">
-                            <i class="fas fa-comment-slash fa-3x mb-3"></i>
-                            <p>Belum ada ulasan yang masuk.</p>
-                        </div>
-                    </td>
-                </tr>
-                {% endfor %}
-            </tbody>
-        </table>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        
+        <div id="noFilterResult" class="text-center py-5 d-none">
+            <span class="text-muted small">Tidak ada ulasan dengan kriteria ini.</span>
+        </div>
     </div>
 </div>
+
+<script>
+    // --- 1. SCRIPT PENCARIAN ---
+    document.getElementById('searchInput').addEventListener('keyup', function() {
+        let filter = this.value.toLowerCase();
+        let rows = document.querySelectorAll('.review-row');
+        
+        rows.forEach(row => {
+            let text = row.innerText.toLowerCase();
+            row.style.display = text.includes(filter) ? "" : "none";
+        });
+    });
+
+    // --- 2. SCRIPT FILTER RATING ---
+    function filterReviews(type, btn) {
+        // Update active button class
+        document.querySelectorAll('.btn-filter').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+
+        let rows = document.querySelectorAll('.review-row');
+        let visibleCount = 0;
+
+        rows.forEach(row => {
+            let rating = parseInt(row.getAttribute('data-rating'));
+            let show = false;
+
+            if (type === 'all') show = true;
+            else if (type === '5' && rating === 5) show = true;
+            else if (type === '4' && rating === 4) show = true;
+            else if (type === 'low' && rating <= 3) show = true;
+
+            row.style.display = show ? "" : "none";
+            if(show) visibleCount++;
+        });
+
+        // Show empty state if no result
+        let emptyState = document.getElementById('noFilterResult');
+        let tableBody = document.getElementById('reviewsTable');
+        
+        if(visibleCount === 0 && rows.length > 0) {
+            emptyState.classList.remove('d-none');
+            tableBody.classList.add('d-none');
+        } else {
+            emptyState.classList.add('d-none');
+            tableBody.classList.remove('d-none');
+        }
+    }
+</script>
 {% endblock %}

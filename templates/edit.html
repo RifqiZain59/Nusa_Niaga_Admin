@@ -1,72 +1,165 @@
 {% extends 'base.html' %}
+
 {% block content %}
-<div class="row justify-content-center">
-    <div class="col-md-8">
-        <div class="card p-5 border-0 shadow-sm">
-            <h4 class="mb-4 fw-bold text-primary">Edit Produk</h4>
-            
-            <form action="{{ url_for('edit', id=product.id) }}" method="POST" enctype="multipart/form-data">
-                
-                <div class="row">
-                    <div class="col-md-6 mb-3">
-                        <label class="form-label text-muted small fw-bold">Nama Produk</label>
-                        <input type="text" name="name" value="{{ product.name }}" class="form-control form-control-lg" required>
-                    </div>
-                    
-                    <div class="col-md-6 mb-3">
-                        <label class="form-label text-muted small fw-bold">Kategori</label>
-                        <select name="category_id" class="form-select form-select-lg" required>
-                            <option value="" disabled>-- Pilih Kategori --</option>
-                            {% for c in categories %}
-                                <option value="{{ c.id }}" {% if product.category_id == c.id %}selected{% endif %}>{{ c.name }}</option>
-                            {% endfor %}
-                        </select>
-                    </div>
-                </div>
+<style>
+    /* Styling untuk Image Upload Zone */
+    .edit-image-zone {
+        border-radius: 15px;
+        overflow: hidden;
+        position: relative;
+        height: 320px;
+        background-color: #f8fafc;
+        border: 2px dashed #cbd5e1;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        transition: all 0.3s ease;
+        cursor: pointer;
+    }
 
-                <div class="row">
-                    <div class="col-md-6 mb-3">
-                        <label class="form-label text-muted small fw-bold">Harga Satuan</label>
-                        <input type="text" name="price" class="form-control form-control-lg rupiah-input" required 
-                               value="{{ '{:,.0f}'.format(product.price).replace(',', '.') }}">
-                        <small class="text-muted" style="font-size: 10px;">*Format titik otomatis</small>
-                    </div>
+    .edit-image-zone:hover {
+        border-color: #f59e0b; /* Warna Warning/Edit */
+        background-color: #fffbeb;
+    }
 
-                    <div class="col-md-6 mb-3">
-                        <label class="form-label text-muted small fw-bold">Stok</label>
-                        <input type="number" name="stock" value="{{ product.stock }}" class="form-control form-control-lg" required>
-                    </div>
-                </div>
+    .edit-image-zone img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        z-index: 1;
+    }
 
-                <div class="mb-3">
-                    <label class="form-label text-muted small fw-bold">Deskripsi</label>
-                    <textarea name="description" class="form-control" rows="2">{{ product.description }}</textarea>
-                </div>
+    /* Overlay Icon saat Hover */
+    .edit-image-zone .overlay {
+        position: absolute;
+        top: 0; left: 0; right: 0; bottom: 0;
+        background: rgba(0,0,0,0.5);
+        z-index: 2;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        opacity: 0;
+        transition: opacity 0.3s;
+        color: white;
+    }
 
-                <div class="mb-4">
-                    <label class="form-label text-muted small fw-bold">Foto Produk</label>
-                    <div class="d-flex align-items-center gap-3 p-3 border rounded bg-light">
-                        <div class="text-center">
-                            <p class="small text-muted mb-1">Saat Ini:</p>
-                            <img src="{{ url_for('product_image', id=product.id) }}" 
-                                 class="rounded shadow-sm border" 
-                                 style="width: 80px; height: 80px; object-fit: cover;">
+    .edit-image-zone:hover .overlay {
+        opacity: 1;
+    }
+
+    /* Gradient Button khusus Edit */
+    .btn-gradient-warning {
+        background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+        border: none;
+        color: white;
+    }
+    .btn-gradient-warning:hover {
+        background: linear-gradient(135deg, #d97706 0%, #b45309 100%);
+        color: white;
+        transform: translateY(-1px);
+    }
+</style>
+
+<div class="container py-4">
+    <div class="row justify-content-center">
+        <div class="col-lg-10">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h4 class="fw-bold text-dark mb-0">
+                    <i class="fas fa-edit text-warning me-2"></i>Edit Produk
+                </h4>
+                <a href="{{ url_for('products') }}" class="btn btn-outline-secondary btn-sm rounded-pill px-3">
+                    <i class="fas fa-times me-1"></i> Batal
+                </a>
+            </div>
+
+            <div class="card border-0 shadow-lg overflow-hidden">
+                <div class="card-body p-0">
+                    <form action="{{ url_for('edit', id=product.id) }}" method="POST" enctype="multipart/form-data">
+                        <div class="row g-0">
+                            
+                            <div class="col-md-4 p-4 bg-light border-end d-flex flex-column">
+                                <label class="form-label fw-bold text-muted mb-3">Foto Produk</label>
+                                
+                                <div class="edit-image-zone shadow-sm" onclick="document.getElementById('fileInput').click()">
+                                    <img id="imagePreview" src="{{ url_for('product_image', id=product.id) }}" 
+                                         onerror="this.src='https://via.placeholder.com/300?text=No+Image'">
+                                    
+                                    <div class="overlay">
+                                        <i class="fas fa-camera fa-2x mb-2"></i>
+                                        <span class="fw-bold">Ganti Foto</span>
+                                    </div>
+                                </div>
+
+                                <input type="file" name="image" id="fileInput" class="d-none" accept="image/*" onchange="previewImage(this)">
+                                
+                                <div class="text-center mt-3">
+                                    <small class="text-muted d-block">Klik gambar untuk mengubah.</small>
+                                    <small class="text-warning fst-italic">*Biarkan jika tidak ingin mengganti foto.</small>
+                                </div>
+                            </div>
+
+                            <div class="col-md-8 p-4 bg-white">
+                                <div class="row">
+                                    <div class="col-12 mb-3">
+                                        <label class="form-label fw-bold text-secondary">Nama Produk</label>
+                                        <input type="text" name="name" value="{{ product.name }}" class="form-control form-control-lg fw-bold text-dark" required>
+                                    </div>
+
+                                    <div class="col-md-6 mb-3">
+                                        <label class="form-label fw-bold text-secondary">Kategori</label>
+                                        <div class="input-group">
+                                            <span class="input-group-text bg-white"><i class="fas fa-tag text-muted"></i></span>
+                                            <select name="category_id" class="form-select" required>
+                                                {% for c in categories %}
+                                                    <option value="{{ c.id }}" {% if product.category_id == c.id %}selected{% endif %}>
+                                                        {{ c.name }}
+                                                    </option>
+                                                {% endfor %}
+                                            </select>
+                                        </div>
+                                    </div>
+
+                                    <div class="col-md-6 mb-3">
+                                        <label class="form-label fw-bold text-secondary">Stok Saat Ini</label>
+                                        <div class="input-group">
+                                            <span class="input-group-text bg-white"><i class="fas fa-box text-muted"></i></span>
+                                            <input type="number" name="stock" value="{{ product.stock }}" class="form-control" required>
+                                        </div>
+                                    </div>
+
+                                    <div class="col-12 mb-3">
+                                        <label class="form-label fw-bold text-secondary">Harga Jual</label>
+                                        <div class="input-group input-group-lg">
+                                            <span class="input-group-text fw-bold bg-warning text-white border-warning">Rp</span>
+                                            <input type="text" name="price" 
+                                                   value="{{ '{:,.0f}'.format(product.price).replace(',', '.') }}" 
+                                                   class="form-control rupiah-input fw-bold text-warning" required autocomplete="off">
+                                        </div>
+                                    </div>
+
+                                    <div class="col-12 mb-4">
+                                        <label class="form-label fw-bold text-secondary">Deskripsi</label>
+                                        <textarea name="description" class="form-control" rows="3">{{ product.description }}</textarea>
+                                    </div>
+                                </div>
+
+                                <div class="d-flex gap-2 pt-2 border-top">
+                                    <button type="submit" class="btn btn-gradient-warning w-100 py-2 fw-bold shadow-sm rounded-pill">
+                                        <i class="fas fa-save me-2"></i> Simpan Perubahan
+                                    </button>
+                                </div>
+                            </div>
                         </div>
-                        <div class="flex-grow-1">
-                            <input type="file" name="image" class="form-control" accept="image/*">
-                            <p class="small text-muted mt-1 mb-0">*Kosongkan jika tidak ingin mengubah foto.</p>
-                        </div>
-                    </div>
+                    </form>
                 </div>
-
-                <button type="submit" class="btn btn-warning text-white btn-lg w-100 shadow-sm mt-2">Update Produk</button>
-                <a href="{{ url_for('products') }}" class="btn btn-light w-100 mt-2">Batal</a>
-            </form>
+            </div>
         </div>
     </div>
 </div>
 
 <script>
+    // 1. Script Format Rupiah
     document.querySelectorAll('.rupiah-input').forEach(function(input) {
         input.addEventListener('keyup', function(e) {
             let value = this.value.replace(/[^,\d]/g, '').toString();
@@ -74,6 +167,7 @@
             let sisa = split[0].length % 3;
             let rupiah = split[0].substr(0, sisa);
             let ribuan = split[0].substr(sisa).match(/\d{3}/gi);
+
             if (ribuan) {
                 let separator = sisa ? '.' : '';
                 rupiah += separator + ribuan.join('.');
@@ -82,5 +176,16 @@
             this.value = rupiah;
         });
     });
+
+    // 2. Script Live Preview Image (Ganti Foto)
+    function previewImage(input) {
+        if (input.files && input.files[0]) {
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                document.getElementById('imagePreview').src = e.target.result;
+            }
+            reader.readAsDataURL(input.files[0]);
+        }
+    }
 </script>
 {% endblock %}

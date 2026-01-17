@@ -1,115 +1,290 @@
 {% extends 'base.html' %}
 
 {% block content %}
-<div class="row">
+<style>
+    @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap');
     
-    <div class="col-12 mb-4">
-        <div class="card border-0 shadow-sm text-white" style="background: linear-gradient(135deg, #1e3a8a 0%, #2563eb 100%);">
-            <div class="card-body p-4 d-flex justify-content-between align-items-center">
-                <div class="d-flex align-items-center">
-                    <div class="bg-white bg-opacity-25 p-3 rounded-circle me-3">
-                        <i class="fas fa-crown fa-2x text-white"></i>
-                    </div>
-                    <div>
-                        <h5 class="opacity-75 mb-1 text-uppercase small ls-1">Member Loyalty</h5>
-                        <h2 class="fw-bold mb-0">{{ c.name }}</h2>
-                        <small class="opacity-75"><i class="fas fa-phone me-1"></i> {{ c.phone }}</small>
-                    </div>
-                </div>
-                <div class="text-end">
-                    <h1 class="fw-bold mb-0">{{ c.points }}</h1>
-                    <span class="badge bg-warning text-dark border border-warning px-3 rounded-pill">POIN AKTIF</span>
-                </div>
-            </div>
-        </div>
+    body {
+        font-family: 'Plus Jakarta Sans', sans-serif;
+        background-color: #f3f4f6;
+    }
+
+    /* === HEADER CARD (Profile Banner) === */
+    .profile-header-card {
+        background: linear-gradient(135deg, #1e40af 0%, #3b82f6 100%);
+        border-radius: 16px;
+        color: white;
+        overflow: hidden;
+        position: relative;
+        box-shadow: 0 10px 25px -5px rgba(30, 64, 175, 0.4);
+    }
+    
+    .profile-avatar {
+        width: 80px; height: 80px;
+        background: rgba(255, 255, 255, 0.2);
+        backdrop-filter: blur(10px);
+        border: 2px solid rgba(255, 255, 255, 0.3);
+        border-radius: 50%;
+        display: flex; align-items: center; justify-content: center;
+        font-size: 2.5rem; font-weight: bold; color: white;
+    }
+
+    .stat-badge {
+        background: rgba(255, 255, 255, 0.15);
+        border-radius: 12px;
+        padding: 10px 15px;
+        text-align: center;
+        backdrop-filter: blur(5px);
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        min-width: 110px;
+    }
+
+    /* === CONTENT CARDS === */
+    .card-premium {
+        background: white;
+        border: 1px solid #e5e7eb;
+        border-radius: 16px;
+        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+        overflow: hidden;
+    }
+
+    /* === INFO LIST STYLE === */
+    .detail-row {
+        display: flex;
+        justify-content: space-between;
+        padding: 12px 0;
+        border-bottom: 1px solid #f3f4f6;
+        align-items: center;
+    }
+    .detail-row:last-child { border-bottom: none; }
+    .detail-label { color: #6b7280; font-size: 0.875rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; }
+    .detail-value { color: #111827; font-weight: 600; text-align: right; }
+
+    /* === TABLE STYLE === */
+    .table-header {
+        background-color: #f9fafb; font-size: 0.75rem; text-transform: uppercase;
+        color: #6b7280; font-weight: 600; border-bottom: 1px solid #e5e7eb;
+    }
+    .table-row { border-bottom: 1px solid #f3f4f6; transition: background 0.15s; }
+    .table-row:hover { background-color: #f8fafc; }
+    .table-row td { padding: 1rem; vertical-align: middle; }
+
+    /* === DECORATIVE ICON === */
+    .icon-watermark {
+        position: absolute; right: -20px; bottom: -30px;
+        font-size: 10rem; opacity: 0.1; transform: rotate(-15deg);
+        pointer-events: none;
+    }
+</style>
+
+<div class="container py-5" style="max-width: 1100px;">
+
+    <div class="mb-4">
+        <a href="{{ url_for('customers') }}" class="text-decoration-none text-muted fw-bold small hover-primary">
+            <i class="fas fa-arrow-left me-1"></i> Kembali ke Daftar Pelanggan
+        </a>
     </div>
 
-    <div class="col-md-5 mb-4">
-        <div class="card border-0 shadow-sm h-100">
-            <div class="card-header bg-white py-3 d-flex justify-content-between align-items-center border-bottom">
-                <h6 class="fw-bold text-primary mb-0"><i class="fas fa-user-circle me-2"></i>Data Akun</h6>
-                <button class="btn btn-sm btn-outline-primary" data-bs-toggle="modal" data-bs-target="#editCustomerModal">
-                    <i class="fas fa-edit"></i> Edit
-                </button>
-            </div>
-            <div class="card-body p-0">
-                <table class="table table-bordered mb-0 align-middle">
-                    <tr>
-                        <td width="35%" class="bg-light text-muted small fw-bold ps-3">Nama Lengkap</td>
-                        <td class="fw-bold ps-3">{{ c.name }}</td>
-                    </tr>
-                    <tr>
-                        <td class="bg-light text-muted small fw-bold ps-3">No. HP (ID)</td>
-                        <td class="ps-3">{{ c.phone }}</td>
-                    </tr>
-                    <tr>
-                        <td class="bg-light text-muted small fw-bold ps-3">Email</td>
-                        <td class="ps-3">{{ c.email or '-' }}</td>
-                    </tr>
-                    <tr>
-                        <td class="bg-light text-muted small fw-bold ps-3">Password</td>
-                        <td class="ps-3">
-                            {% if c.password %}
-                                <span class="text-muted" style="letter-spacing: 2px;">********</span>
-                            {% else %}
-                                <span class="badge bg-secondary">Belum set</span>
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="profile-header-card p-4 p-lg-5">
+                <div class="d-flex flex-column flex-md-row align-items-center gap-4 position-relative z-1">
+                    <div class="profile-avatar shadow-sm">
+                        {{ c.name[:1] | upper }}
+                    </div>
+                    
+                    <div class="text-center text-md-start flex-grow-1">
+                        <h5 class="text-white-50 text-uppercase fw-bold mb-1 small ls-1">Member Profile</h5>
+                        <h2 class="fw-bold mb-1">{{ c.name }}</h2>
+                        <div class="opacity-75 small">
+                            <i class="fas fa-phone-alt me-2"></i>{{ c.phone }}
+                            {% if c.email %}
+                                <span class="mx-2 d-none d-md-inline">•</span>
+                                <i class="fas fa-envelope me-2 ms-0 ms-md-2"></i>{{ c.email }}
                             {% endif %}
-                        </td>
-                    </tr>
-                    <tr>
-                        <td class="bg-light text-muted small fw-bold ps-3">Alamat</td>
-                        <td class="ps-3 text-truncate" style="max-width: 150px;">{{ c.address or '-' }}</td>
-                    </tr>
-                </table>
-            </div>
-            <div class="card-footer bg-white p-3">
-                <a href="{{ url_for('customers') }}" class="btn btn-light w-100 text-muted">
-                    <i class="fas fa-arrow-left me-2"></i>Kembali
-                </a>
+                        </div>
+                    </div>
+
+                    <div class="d-flex gap-3">
+                        <div class="stat-badge">
+                            <div class="small text-white-50 text-uppercase fw-bold" style="font-size: 0.65rem;">Poin Reward</div>
+                            <div class="fw-bold fs-4 text-warning">{{ "{:,.0f}".format(c.points|int) }}</div>
+                        </div>
+                        <div class="stat-badge">
+                            <div class="small text-white-50 text-uppercase fw-bold" style="font-size: 0.65rem;">Total Transaksi</div>
+                            <div class="fw-bold fs-4">{{ transactions|length }}</div>
+                        </div>
+                    </div>
+                </div>
+                
+                <i class="fas fa-user-circle icon-watermark text-white"></i>
             </div>
         </div>
     </div>
 
-    <div class="col-md-7 mb-4">
-        <div class="card border-0 shadow-sm h-100">
-            <div class="card-header bg-white py-3 border-bottom">
-                <h6 class="fw-bold text-primary mb-0"><i class="fas fa-shopping-bag me-2"></i>Riwayat Pembelian</h6>
+    <div class="row g-4">
+        
+        <div class="col-lg-4">
+            <div class="card-premium h-100">
+                <div class="p-4 border-bottom bg-white d-flex justify-content-between align-items-center">
+                    <h6 class="fw-bold m-0 text-dark"><i class="fas fa-id-card me-2 text-primary"></i>Informasi Akun</h6>
+                    <button class="btn btn-sm btn-light text-primary border shadow-sm rounded-pill px-3" data-bs-toggle="modal" data-bs-target="#editCustomerModal">
+                        <i class="fas fa-pen me-1"></i> Edit
+                    </button>
+                </div>
+                <div class="p-4">
+                    
+                    <div class="mb-3">
+                        <span class="detail-label d-block mb-2">ID Pelanggan</span>
+                        <div class="d-flex align-items-center bg-primary bg-opacity-10 rounded-3 px-3 py-2 border border-primary border-opacity-25 justify-content-between">
+                            <div class="d-flex align-items-center" style="overflow: hidden;">
+                                <i class="fas fa-fingerprint text-primary me-2 opacity-50"></i>
+                                <span class="font-monospace fw-bold text-primary text-truncate" style="font-size: 0.9rem; max-width: 160px;" title="{{ c.id }}">
+                                    {{ c.id }}
+                                </span>
+                            </div>
+                            <button class="btn btn-sm text-primary p-0 ms-2" onclick="copyToClipboard('{{ c.id }}')" title="Salin ID" style="width: 24px; height: 24px; flex-shrink: 0;">
+                                <i class="far fa-copy"></i>
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="detail-row">
+                        <span class="detail-label">No. WhatsApp</span>
+                        <div class="d-flex align-items-center gap-2">
+                            <span class="detail-value">{{ c.phone }}</span>
+                            <a href="https://wa.me/{{ c.phone }}" target="_blank" class="text-success small"><i class="fab fa-whatsapp"></i></a>
+                        </div>
+                    </div>
+                    
+                    <div class="detail-row">
+                        <span class="detail-label">Email</span>
+                        <span class="detail-value text-break small" style="max-width: 180px;">{{ c.email or '-' }}</span>
+                    </div>
+
+                    <div class="detail-row">
+                        <span class="detail-label">Keamanan</span>
+                        <span class="detail-value">
+                            {% if c.password %}
+                                <span class="badge bg-success bg-opacity-10 text-success rounded-pill px-3 py-1 border border-success border-opacity-25">
+                                    <i class="fas fa-lock me-1"></i> Terkunci
+                                </span>
+                            {% else %}
+                                <span class="badge bg-secondary bg-opacity-10 text-secondary rounded-pill px-3 py-1 border border-secondary border-opacity-25">
+                                    <i class="fas fa-unlock me-1"></i> Tanpa PW
+                                </span>
+                            {% endif %}
+                        </span>
+                    </div>
+                    
+                    <div class="mt-4 pt-3 border-top">
+                        <span class="detail-label d-block mb-2">Alamat Pengiriman</span>
+                        <div class="p-3 bg-light rounded-3 text-dark small border position-relative">
+                            {% if c.address %}
+                                <div class="d-flex">
+                                    <i class="fas fa-map-marker-alt text-danger me-2 mt-1"></i>
+                                    <span style="line-height: 1.5;">{{ c.address }}</span>
+                                </div>
+                            {% else %}
+                                <div class="text-center py-2 text-muted fst-italic">
+                                    Belum ada alamat tersimpan.
+                                </div>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
             </div>
-            <div class="card-body p-0">
+        </div>
+
+        <div class="col-lg-8">
+            <div class="card-premium h-100">
+                <div class="p-4 border-bottom bg-white">
+                    <h6 class="fw-bold m-0 text-dark"><i class="fas fa-history me-2 text-secondary"></i>Riwayat Pesanan</h6>
+                </div>
                 <div class="table-responsive">
-                    <table class="table table-hover align-middle mb-0 table-striped">
-                        <thead class="table-light small text-muted">
+                    <table class="table mb-0 align-middle w-100">
+                        <thead class="table-header">
                             <tr>
-                                <th class="ps-3">Tanggal</th>
-                                <th>Produk</th>
-                                <th class="text-center">Qty</th>
-                                <th class="text-end pe-3">Total</th>
+                                <th class="ps-4 py-3">ID & Waktu</th>
+                                <th class="py-3">Detail Belanja (Items)</th>
+                                <th class="py-3 text-center">Metode</th>
+                                <th class="py-3 text-end pe-4">Total Bayar</th>
                             </tr>
                         </thead>
-                        <tbody>
+                        <tbody class="bg-white">
                             {% for t in transactions %}
-                            <tr>
-                                <td class="ps-3 text-muted small">
-                                    {{ t.date.strftime('%d/%m/%y') }}<br>
-                                    {{ t.date.strftime('%H:%M') }}
+                            <tr class="table-row">
+                                <td class="ps-4" style="width: 20%;">
+                                    <div class="fw-bold text-primary small font-monospace">{{ t.order_id }}</div>
+                                    <div class="text-dark small fw-bold mt-1">
+                                        {{ t.date.strftime('%d %b %Y') }}
+                                    </div>
+                                    <div class="text-muted x-small">
+                                        {{ t.date.strftime('%H:%M') }} WIB
+                                    </div>
                                 </td>
-                                <td>
-                                    <span class="fw-bold text-dark d-block">{{ t.product.name }}</span>
-                                    <span class="badge bg-light text-secondary border">{{ t.payment_method }}</span>
-                                    {% if t.discount_voucher > 0 %}
-                                        <span class="badge bg-danger bg-opacity-10 text-danger">Voucher</span>
+                                
+                                <td style="width: 40%;">
+                                    {% if t.items %}
+                                        <div class="d-flex flex-column gap-1">
+                                            {% for item in t.items %}
+                                            <div class="d-flex justify-content-between align-items-center small border-bottom border-light pb-1 mb-1">
+                                                <span class="text-dark fw-medium text-truncate" style="max-width: 150px;">
+                                                    {{ item.product_name }}
+                                                </span>
+                                                <span class="badge bg-light text-secondary border">x{{ item.qty }}</span>
+                                            </div>
+                                            {% endfor %}
+                                        </div>
+                                    {% else %}
+                                        <div class="small text-dark fw-bold">
+                                            {{ t.product.name if t.product else (t.product_name or 'Produk Item') }}
+                                        </div>
+                                        <div class="mt-1">
+                                            <span class="badge bg-light text-secondary border">x{{ t.qty or t.quantity or 1 }}</span>
+                                        </div>
+                                    {% endif %}
+                                    
+                                    {% if t.voucher_code %}
+                                        <div class="mt-2">
+                                            <span class="badge bg-success bg-opacity-10 text-success border border-success border-opacity-25 rounded-pill" style="font-size: 0.65rem;">
+                                                <i class="fas fa-ticket-alt me-1"></i> {{ t.voucher_code }}
+                                            </span>
+                                        </div>
                                     {% endif %}
                                 </td>
-                                <td class="text-center fw-bold">{{ t.quantity }}</td>
-                                <td class="text-end pe-3 fw-bold text-success">
-                                    Rp {{ "{:,.0f}".format(t.final_price) }}
+                                
+                                <td class="text-center">
+                                    <span class="badge bg-secondary bg-opacity-10 text-dark border rounded-pill px-3">
+                                        {{ t.payment_method }}
+                                    </span>
+                                </td>
+
+                                <td class="text-end pe-4">
+                                    {% if t.summary and t.summary.grand_total %}
+                                        <div class="fw-bold text-dark font-monospace">
+                                            Rp {{ "{:,.0f}".format(t.summary.grand_total|float).replace(',', '.') }}
+                                        </div>
+                                        {% if t.summary.discount > 0 %}
+                                            <div class="text-danger small" style="font-size: 0.7rem;">
+                                                (Hemat Rp {{ "{:,.0f}".format(t.summary.discount|float).replace(',', '.') }})
+                                            </div>
+                                        {% endif %}
+                                    {% else %}
+                                        <div class="fw-bold text-dark font-monospace">
+                                            Rp {{ "{:,.0f}".format(t.final_price|float).replace(',', '.') }}
+                                        </div>
+                                    {% endif %}
                                 </td>
                             </tr>
                             {% else %}
                             <tr>
-                                <td colspan="4" class="text-center py-5 text-muted">
-                                    <i class="fas fa-shopping-basket fa-2x mb-3 opacity-25"></i>
-                                    <p class="mb-0">Belum ada riwayat transaksi.</p>
+                                <td colspan="4" class="text-center py-5">
+                                    <div class="d-flex flex-column align-items-center justify-content-center text-muted opacity-50">
+                                        <i class="fas fa-shopping-basket fa-3x mb-3"></i>
+                                        <h6 class="fw-bold">Belum Ada Transaksi</h6>
+                                        <p class="mb-0 small">Pelanggan ini belum melakukan pembelian.</p>
+                                    </div>
                                 </td>
                             </tr>
                             {% endfor %}
@@ -119,57 +294,70 @@
             </div>
         </div>
     </div>
-
 </div>
 
 <div class="modal fade" id="editCustomerModal" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered">
-        <div class="modal-content border-0 shadow-lg">
-            <div class="modal-header bg-primary text-white border-0">
-                <h5 class="modal-title fw-bold"><i class="fas fa-user-edit me-2"></i>Edit Data Akun</h5>
-                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+        <div class="modal-content border-0 shadow-lg rounded-4 overflow-hidden">
+            <div class="modal-header bg-white border-bottom py-3">
+                <h5 class="modal-title fw-bold text-dark"><i class="fas fa-user-cog me-2 text-primary"></i>Edit Profil</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
             
             <form action="{{ url_for('update_customer') }}" method="POST">
-                <div class="modal-body p-4">
+                <div class="modal-body p-4 bg-light">
                     <input type="hidden" name="customer_id" value="{{ c.id }}">
                     
-                    <div class="mb-3">
-                        <label class="form-label text-muted small fw-bold">Nama Lengkap</label>
-                        <input type="text" name="name" class="form-control" value="{{ c.name }}" required>
+                    <div class="bg-white p-4 rounded-3 shadow-sm border mb-3">
+                        <div class="mb-3">
+                            <label class="form-label text-muted small fw-bold text-uppercase">Nama Lengkap</label>
+                            <input type="text" name="name" class="form-control form-control-lg fs-6" value="{{ c.name }}" required>
+                        </div>
+
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label text-muted small fw-bold text-uppercase">No. HP (ID Login)</label>
+                                <input type="text" name="phone" class="form-control" value="{{ c.phone }}" required>
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label text-muted small fw-bold text-uppercase">Email</label>
+                                <input type="email" name="email" class="form-control" value="{{ c.email or '' }}" placeholder="Opsional">
+                            </div>
+                        </div>
                     </div>
 
-                    <div class="row">
-                        <div class="col-md-6 mb-3">
-                            <label class="form-label text-muted small fw-bold">No. HP (ID)</label>
-                            <input type="text" name="phone" class="form-control" value="{{ c.phone }}" required>
+                    <div class="bg-white p-4 rounded-3 shadow-sm border">
+                        <div class="mb-3">
+                            <label class="form-label text-muted small fw-bold text-uppercase">Ubah Password</label>
+                            <div class="input-group">
+                                <span class="input-group-text bg-light text-muted border-end-0"><i class="fas fa-key"></i></span>
+                                <input type="text" name="password" class="form-control border-start-0 ps-2" placeholder="Kosongkan jika tidak diganti">
+                            </div>
                         </div>
-                        <div class="col-md-6 mb-3">
-                            <label class="form-label text-muted small fw-bold">Email</label>
-                            <input type="email" name="email" class="form-control" value="{{ c.email or '' }}" placeholder="email@contoh.com">
-                        </div>
-                    </div>
 
-                    <div class="mb-3">
-                        <label class="form-label text-muted small fw-bold">Password Baru</label>
-                        <div class="input-group">
-                            <span class="input-group-text bg-light"><i class="fas fa-lock"></i></span>
-                            <input type="text" name="password" class="form-control" placeholder="Isi untuk ganti password">
+                        <div class="mb-0">
+                            <label class="form-label text-muted small fw-bold text-uppercase">Alamat Lengkap</label>
+                            <textarea name="address" class="form-control" rows="3" placeholder="Jalan, No. Rumah, Kota...">{{ c.address }}</textarea>
                         </div>
-                        <div class="form-text small text-muted">Biarkan kosong jika tidak ingin mengubah.</div>
-                    </div>
-
-                    <div class="mb-3">
-                        <label class="form-label text-muted small fw-bold">Alamat Pengiriman</label>
-                        <textarea name="address" class="form-control" rows="3">{{ c.address }}</textarea>
                     </div>
                 </div>
-                <div class="modal-footer border-0 bg-light">
+                
+                <div class="modal-footer border-top bg-white py-3">
                     <button type="button" class="btn btn-link text-muted text-decoration-none" data-bs-dismiss="modal">Batal</button>
-                    <button type="submit" class="btn btn-primary px-4 fw-bold shadow-sm">Simpan Perubahan</button>
+                    <button type="submit" class="btn btn-primary px-4 fw-bold shadow-sm rounded-pill">Simpan Perubahan</button>
                 </div>
             </form>
         </div>
     </div>
 </div>
+
+<script>
+    function copyToClipboard(text) {
+        navigator.clipboard.writeText(text).then(() => {
+            alert("ID Pelanggan berhasil disalin!");
+        }).catch(err => {
+            console.error('Gagal menyalin:', err);
+        });
+    }
+</script>
 {% endblock %}

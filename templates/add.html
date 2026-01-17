@@ -1,62 +1,164 @@
 {% extends 'base.html' %}
+
 {% block content %}
-<div class="row justify-content-center">
-    <div class="col-md-8">
-        <div class="card p-5 border-0 shadow-sm">
-            <h4 class="mb-4 fw-bold text-primary">Tambah Produk Baru</h4>
-            
-            <form action="{{ url_for('add') }}" method="POST" enctype="multipart/form-data">
-                
-                <div class="row">
-                    <div class="col-md-6 mb-3">
-                        <label class="form-label text-muted small fw-bold">Nama Produk</label>
-                        <input type="text" name="name" class="form-control" required placeholder="Nama produk...">
-                    </div>
-                    <div class="col-md-6 mb-3">
-                        <label class="form-label text-muted small fw-bold">Kategori</label>
-                        <select name="category_id" class="form-control">
-                            {% for cat in categories %}
-                                <option value="{{ cat.id }}">{{ cat.name }}</option>
-                            {% endfor %}
-                        </select>
-                        <div class="form-text small"><a href="{{ url_for('categories') }}">Kelola kategori?</a></div>
-                    </div>
-                </div>
+<style>
+    /* Custom Styling untuk Upload Area */
+    .upload-zone {
+        border: 2px dashed #cbd5e1;
+        border-radius: 15px;
+        background-color: #f8fafc;
+        position: relative;
+        height: 300px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        overflow: hidden;
+    }
+    
+    .upload-zone:hover {
+        border-color: #3b82f6;
+        background-color: #eff6ff;
+    }
 
-                <div class="row">
-                    <div class="col-md-6 mb-3">
-                        <label class="form-label text-muted small fw-bold">Harga Satuan</label>
-                        <input type="text" name="price" class="form-control rupiah-input" required 
-                               placeholder="Contoh: 15.000" autocomplete="off">
-                        <small class="text-muted" style="font-size: 10px;">*Otomatis format titik</small>
-                    </div>
-                    
-                    <div class="col-md-6 mb-3">
-                        <label class="form-label text-muted small fw-bold">Stok Awal</label>
-                        <input type="number" name="stock" class="form-control" required placeholder="50">
-                    </div>
-                </div>
+    .upload-zone img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        position: absolute;
+        top: 0;
+        left: 0;
+        display: none; /* Sembunyikan default */
+    }
 
-                <div class="mb-3">
-                    <label class="form-label text-muted small fw-bold">Foto Produk</label>
-                    <input type="file" name="image" class="form-control" accept="image/*">
-                </div>
+    .upload-placeholder {
+        text-align: center;
+        color: #64748b;
+        pointer-events: none;
+    }
 
-                <div class="mb-4">
-                    <label class="form-label text-muted small fw-bold">Deskripsi</label>
-                    <textarea name="description" class="form-control" rows="2" placeholder="Keterangan produk..."></textarea>
-                </div>
+    .form-label {
+        font-weight: 600;
+        color: #334155;
+        font-size: 0.9rem;
+    }
 
-                <button type="submit" class="btn btn-primary btn-lg w-100 shadow-sm">Simpan Produk</button>
-                <a href="{{ url_for('products') }}" class="btn btn-light w-100 mt-2">Batal</a>
-            </form>
+    .card {
+        border-radius: 16px;
+        overflow: hidden;
+    }
+
+    .btn-gradient {
+        background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
+        border: none;
+        color: white;
+    }
+    
+    .btn-gradient:hover {
+        background: linear-gradient(135deg, #1d4ed8 0%, #1e40af 100%);
+        color: white;
+        transform: translateY(-1px);
+    }
+</style>
+
+<div class="container py-4">
+    <div class="row justify-content-center">
+        <div class="col-lg-10">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h4 class="fw-bold text-dark mb-0">
+                    <i class="fas fa-box-open text-primary me-2"></i>Tambah Produk Baru
+                </h4>
+                <a href="{{ url_for('products') }}" class="btn btn-outline-secondary btn-sm rounded-pill px-3">
+                    <i class="fas fa-arrow-left me-1"></i> Kembali
+                </a>
+            </div>
+
+            <div class="card border-0 shadow-lg">
+                <div class="card-body p-0">
+                    <form action="{{ url_for('add') }}" method="POST" enctype="multipart/form-data">
+                        <div class="row g-0">
+                            
+                            <div class="col-md-4 p-4 bg-light border-end">
+                                <label class="form-label mb-3">Foto Produk</label>
+                                <div class="upload-zone" onclick="document.getElementById('fileInput').click()">
+                                    <div class="upload-placeholder" id="placeholder">
+                                        <i class="fas fa-cloud-upload-alt fa-3x mb-3 text-primary opacity-50"></i>
+                                        <p class="mb-0 fw-bold">Klik untuk Upload</p>
+                                        <small class="text-muted">Format JPG/PNG</small>
+                                    </div>
+                                    <img id="imagePreview" src="#" alt="Preview">
+                                    <input type="file" name="image" id="fileInput" class="d-none" accept="image/*" onchange="previewImage(this)">
+                                </div>
+                                <div class="text-center mt-3">
+                                    <small class="text-muted">Disarankan ukuran 1:1 (Persegi)</small>
+                                </div>
+                            </div>
+
+                            <div class="col-md-8 p-4 bg-white">
+                                <div class="row">
+                                    <div class="col-12 mb-3">
+                                        <label class="form-label">Nama Produk</label>
+                                        <input type="text" name="name" class="form-control form-control-lg" required placeholder="Contoh: Kopi Robusta Premium">
+                                    </div>
+
+                                    <div class="col-md-6 mb-3">
+                                        <label class="form-label">Kategori</label>
+                                        <div class="input-group">
+                                            <span class="input-group-text bg-white"><i class="fas fa-tag text-muted"></i></span>
+                                            <select name="category_id" class="form-select" required>
+                                                <option value="" disabled selected>Pilih Kategori...</option>
+                                                {% for cat in categories %}
+                                                    <option value="{{ cat.id }}">{{ cat.name }}</option>
+                                                {% endfor %}
+                                            </select>
+                                        </div>
+                                        <div class="text-end mt-1">
+                                            <a href="{{ url_for('categories') }}" class="text-decoration-none small text-primary fw-bold">+ Kategori Baru</a>
+                                        </div>
+                                    </div>
+
+                                    <div class="col-md-6 mb-3">
+                                        <label class="form-label">Stok Awal</label>
+                                        <div class="input-group">
+                                            <span class="input-group-text bg-white"><i class="fas fa-layer-group text-muted"></i></span>
+                                            <input type="number" name="stock" class="form-control" required placeholder="0" min="0">
+                                        </div>
+                                    </div>
+
+                                    <div class="col-12 mb-3">
+                                        <label class="form-label">Harga Jual</label>
+                                        <div class="input-group input-group-lg">
+                                            <span class="input-group-text fw-bold bg-primary text-white border-primary">Rp</span>
+                                            <input type="text" name="price" class="form-control rupiah-input fw-bold text-primary" required placeholder="0" autocomplete="off">
+                                        </div>
+                                    </div>
+
+                                    <div class="col-12 mb-4">
+                                        <label class="form-label">Deskripsi Singkat</label>
+                                        <textarea name="description" class="form-control" rows="3" placeholder="Jelaskan keunggulan produk ini..."></textarea>
+                                    </div>
+                                </div>
+
+                                <div class="d-flex gap-2">
+                                    <button type="submit" class="btn btn-gradient w-100 py-2 fw-bold shadow-sm">
+                                        <i class="fas fa-save me-2"></i> Simpan Produk
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+            </div>
         </div>
     </div>
 </div>
 
 <script>
+    // 1. Script untuk Format Rupiah
     document.querySelectorAll('.rupiah-input').forEach(function(input) {
         input.addEventListener('keyup', function(e) {
+            // Hapus karakter selain angka
             let value = this.value.replace(/[^,\d]/g, '').toString();
             let split = value.split(',');
             let sisa = split[0].length % 3;
@@ -71,5 +173,27 @@
             this.value = rupiah;
         });
     });
+
+    // 2. Script untuk Preview Image
+    function previewImage(input) {
+        const preview = document.getElementById('imagePreview');
+        const placeholder = document.getElementById('placeholder');
+        
+        if (input.files && input.files[0]) {
+            const reader = new FileReader();
+            
+            reader.onload = function(e) {
+                preview.src = e.target.result;
+                preview.style.display = 'block'; // Munculkan gambar
+                placeholder.style.display = 'none'; // Sembunyikan text placeholder
+            }
+            
+            reader.readAsDataURL(input.files[0]);
+        } else {
+            preview.src = '#';
+            preview.style.display = 'none';
+            placeholder.style.display = 'block';
+        }
+    }
 </script>
 {% endblock %}
