@@ -185,18 +185,46 @@ class Favorite(FirestoreModel):
     @property
     def customer(self):
         cid = self._data.get('customer_id')
+        saved_name = self._data.get('customer_name')
+        
+        # 1. Prioritas: Ambil nama dari dokumen favorit (Data dari Flutter)
+        if saved_name and saved_name not in ["Unknown User", "Pengguna"]:
+             return Customer(cid, {'name': saved_name})
+
+        # 2. Fallback: Cari di database customers (Data Lama)
         if cid:
-            d = db.collection('customers').document(str(cid)).get()
-            if d.exists: return Customer(d.id, d.to_dict())
+            try:
+                doc = db.collection('customers').document(str(cid)).get()
+                if doc.exists: 
+                    return Customer(doc.id, doc.to_dict())
+            except Exception:
+                pass # Lanjut ke default jika error
+
+        # 3. Default
         return Customer(None, {'name': 'Unknown'})
     
     @property
     def product(self):
         pid = self._data.get('product_id')
+        saved_prod_name = self._data.get('product_name')
+
+        # 1. Coba ambil data produk asli dari DB
         if pid:
-            d = db.collection('products').document(str(pid)).get()
-            if d.exists: return Product(d.id, d.to_dict())
-        return Product(None, {'name': 'Unknown'})
+            try:
+                d = db.collection('products').document(str(pid)).get()
+                if d.exists: 
+                    return Product(d.id, d.to_dict())
+            except Exception:
+                pass # Lanjut ke fallback jika error
+        
+        # 2. Fallback: Jika produk dihapus dari DB, pakai nama & harga yang tersimpan di favorit
+        if saved_prod_name:
+            # Ambil harga yang tersimpan saat di-like, default 0
+            safe_price = self._data.get('price', 0)
+            return Product(pid, {'name': saved_prod_name, 'price': safe_price})
+            
+        # 3. Default (PENTING: Jangan return None, return object Product dummy)
+        return Product(None, {'name': 'Unknown Product', 'price': 0})
         
     @property
     def created_at(self):
