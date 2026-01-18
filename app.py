@@ -159,11 +159,9 @@ class Review(FirestoreModel):
     @property
     def customer(self):
         cid = self._data.get('customer_id') or self._data.get('user_id')
-        # Prioritas pakai nama yang tersimpan di review
         name = self._data.get('customer_name')
         if name: return Customer(cid, {'name': name})
         
-        # Fallback query DB
         if cid:
             d = db.collection('customers').document(str(cid)).get()
             if d.exists: return Customer(d.id, d.to_dict())
@@ -186,44 +184,29 @@ class Favorite(FirestoreModel):
     def customer(self):
         cid = self._data.get('customer_id')
         saved_name = self._data.get('customer_name')
-        
-        # 1. Prioritas: Ambil nama dari dokumen favorit (Data dari Flutter)
         if saved_name and saved_name not in ["Unknown User", "Pengguna"]:
              return Customer(cid, {'name': saved_name})
-
-        # 2. Fallback: Cari di database customers (Data Lama)
         if cid:
             try:
                 doc = db.collection('customers').document(str(cid)).get()
-                if doc.exists: 
-                    return Customer(doc.id, doc.to_dict())
-            except Exception:
-                pass # Lanjut ke default jika error
-
-        # 3. Default
+                if doc.exists: return Customer(doc.id, doc.to_dict())
+            except Exception: pass
         return Customer(None, {'name': 'Unknown'})
     
     @property
     def product(self):
         pid = self._data.get('product_id')
         saved_prod_name = self._data.get('product_name')
-
-        # 1. Coba ambil data produk asli dari DB
         if pid:
             try:
                 d = db.collection('products').document(str(pid)).get()
-                if d.exists: 
-                    return Product(d.id, d.to_dict())
-            except Exception:
-                pass # Lanjut ke fallback jika error
+                if d.exists: return Product(d.id, d.to_dict())
+            except Exception: pass
         
-        # 2. Fallback: Jika produk dihapus dari DB, pakai nama & harga yang tersimpan di favorit
         if saved_prod_name:
-            # Ambil harga yang tersimpan saat di-like, default 0
             safe_price = self._data.get('price', 0)
             return Product(pid, {'name': saved_prod_name, 'price': safe_price})
             
-        # 3. Default (PENTING: Jangan return None, return object Product dummy)
         return Product(None, {'name': 'Unknown Product', 'price': 0})
         
     @property
@@ -285,7 +268,6 @@ def login():
             user_obj = User(user_id, user_data)
             if user_obj.check_password(password):
                 login_user(user_obj)
-                # Redirect ke index (yang sekarang diarahkan ke dashboard)
                 return redirect(url_for('index'))
         flash("Username atau password salah.", "danger")
     return render_template('login.html')
@@ -319,15 +301,12 @@ def register():
 @login_required
 def logout(): logout_user(); return redirect(url_for('login'))
 
-# --- [UBAH DISINI] Route Landing Page (Public) ---
 @app.route('/')
 def landing_page():
-    # Opsional: Redirect ke dashboard jika sudah login
     if current_user.is_authenticated:
         return redirect(url_for('index'))
     return render_template('landing.html')
 
-# --- [UBAH DISINI] Dashboard dipindah ke /dashboard ---
 @app.route('/dashboard')
 @login_required
 def index():
@@ -425,69 +404,6 @@ def add():
         
     return render_template('add.html', categories=categories)
 
-
-@app.route('/api/add_review', methods=['POST'])
-def api_add_review():
-    try:
-        data = request.json
-        user_id = data.get('user_id')
-        product_id = data.get('product_id')
-        rating = int(data.get('rating'))
-        comment = data.get('comment', '') 
-        qty = int(data.get('qty', 1))
-        
-        if not user_id or not product_id:
-            return api_response('error', 'User ID dan Product ID wajib')
-
-        # Ambil Data Pelanggan
-        customer_name = "Pengguna Tanpa Nama"
-        customer_image = ""
-
-        if user_id:
-            user_ref = db.collection('customers').document(user_id)
-            user_doc = user_ref.get()
-            if user_doc.exists:
-                user_data = user_doc.to_dict()
-                customer_name = user_data.get('name', customer_name)
-                # FIX: Cek ukuran gambar user agar tidak crash di review
-                c_img = user_data.get('image_base64', '')
-                if len(c_img) < 200 * 1024: # Limit 200KB untuk profil
-                    customer_image = c_img
-
-        review_data = {
-            'user_id': user_id,
-            'customer_name': customer_name,
-            'customer_image': customer_image,
-            'product_id': product_id,
-            'rating': rating,
-            'comment': comment,
-            'qty': qty,
-            'created_at': datetime.now().isoformat()
-        }
-        db.collection('reviews').add(review_data)
-
-        # Hitung Rata-rata Rating Baru
-        reviews = db.collection('reviews').where('product_id', '==', product_id).stream()
-        
-        total_rating = 0
-        count = 0
-        for r in reviews:
-            rd = r.to_dict()
-            total_rating += rd.get('rating', 0)
-            count += 1
-            
-        new_average = round(total_rating / count, 1) if count > 0 else rating
-
-        db.collection('products').document(product_id).update({
-            'rating': new_average
-        })
-
-        return api_response('success', 'Rating berhasil disimpan', {'new_rating': new_average})
-
-    except Exception as e:
-        print(f"Error Review: {e}")
-        return api_response('error', str(e))
-
 @app.route('/edit/<id>', methods=['POST', 'GET'])
 @login_required
 def edit(id):
@@ -520,7 +436,6 @@ def edit(id):
 @login_required
 def delete(id):
     try:
-        # Hapus data terkait dulu
         for t in db.collection('transactions').where('product_id', '==', id).stream(): t.reference.delete()
         for r in db.collection('reviews').where('product_id', '==', id).stream(): r.reference.delete()
         for f in db.collection('favorites').where('product_id', '==', id).stream(): f.reference.delete()
@@ -720,7 +635,6 @@ def update_profile():
     flash("Profil diperbarui.", "success")
     return redirect(url_for('profile'))
 
-# [WEB ADMIN: SIMPAN TRANSAKSI & KURANGI STOK]
 @app.route('/add_transaction', methods=['GET', 'POST'])
 @login_required
 def add_transaction():
@@ -745,7 +659,6 @@ def add_transaction():
             total_gross = 0
             product_map = {}
             
-            # --- AGREGASI ITEM (PENTING) ---
             aggregated_items = {}
             for item in cart_items:
                 pid = str(item['id'])
@@ -820,7 +733,7 @@ def add_transaction():
                 'payment_method': pay,
                 'voucher_code': code,
                 'items': trx_items_list,
-                'status': 'success', # [PERBAIKAN] Force success
+                'status': 'success', 
                 'summary': {
                     'sub_total': total_gross,
                     'discount': disc_voucher_total,
@@ -922,7 +835,6 @@ def update_customer():
     except Exception as e: flash(f"Error: {e}", "danger")
     return redirect(url_for('customer_detail', id=cid))
 
-# [ROUTE REDEEM POINTS]
 @app.route('/redeem_points', methods=['POST'])
 @login_required
 def redeem_points():
@@ -1025,6 +937,58 @@ def api_banners():
     docs = db.collection('banners').where('is_active', '==', True).stream()
     data = [{'id': d.id, 'title': d.to_dict().get('title'), 'image_url': url_for('banner_image', id=d.id, _external=True)} for d in docs]
     return api_response('success', 'Data banner berhasil', data)
+
+# --------------------------------------------------------------------------
+# [BARU] ENDPOINT LOGIN GOOGLE (PENTING AGAR TIDAK ERROR DI FLUTTER)
+# --------------------------------------------------------------------------
+@app.route('/api/login_google', methods=['POST'])
+def login_google():
+    try:
+        data = request.json
+        uid = data.get('uid')
+        email = data.get('email')
+        name = data.get('name')
+        
+        # Validasi Input
+        if not uid:
+            return api_response('error', 'UID Google wajib ada!')
+
+        # Cek apakah user sudah ada di koleksi 'customers'
+        user_ref = db.collection('customers').document(uid)
+        doc = user_ref.get()
+
+        if doc.exists:
+            # User LAMA: Update nama/email terbaru (Sync)
+            user_data = doc.to_dict()
+            user_ref.update({
+                'name': name,
+                'email': email,
+                'last_login': datetime.now().isoformat()
+            })
+            # Gabungkan data terbaru ke response
+            user_data['name'] = name
+            user_data['email'] = email
+            user_data['id'] = uid
+        else:
+            # User BARU: Buat dokumen baru dengan default value
+            user_data = {
+                'id': uid, # Simpan ID juga di dalam field
+                'name': name,
+                'email': email,
+                'role': 'Member',
+                'points': 0,
+                'phone': '', # Google login tidak selalu memberikan HP
+                'created_at': datetime.now().isoformat(),
+                'last_login': datetime.now().isoformat()
+            }
+            user_ref.set(user_data)
+
+        return api_response('success', 'Login Google Berhasil', user_data)
+
+    except Exception as e:
+        print(f"Error Login Google: {e}")
+        return api_response('error', str(e))
+# --------------------------------------------------------------------------
 
 @app.route('/api/loginpengguna', methods=['POST'])
 def loginpengguna():
@@ -1135,28 +1099,19 @@ def api_rewards():
 @app.route('/api/user_points/<user_id>', methods=['GET'])
 def api_user_points(user_id):
     try:
-        # Cari dokumen user di collection 'customers'
         doc = db.collection('customers').document(str(user_id)).get()
-        
         if doc.exists:
             data = doc.to_dict()
-            # Ambil field 'points', default 0 jika tidak ada
             current_points = data.get('points', 0)
             return api_response('success', 'Poin ditemukan', {'points': current_points})
         else:
             return api_response('error', 'User tidak ditemukan')
-            
     except Exception as e:
         return api_response('error', str(e))
     
-# [API HISTORY PENUKARAN POIN]
 @app.route('/api/point_history/<user_id>', methods=['GET'])
 def api_point_history(user_id):
     try:
-        print(f"DEBUG: Mengambil History untuk User ID: {user_id}")
-
-        # 1. Query ke collection 'point_redemptions'
-        # Filter berdasarkan field 'customer_id'
         docs = db.collection('point_redemptions')\
                  .where('customer_id', '==', str(user_id))\
                  .stream()
@@ -1164,22 +1119,15 @@ def api_point_history(user_id):
         history_data = []
         for doc in docs:
             data = doc.to_dict()
-            data['id'] = doc.id # Sertakan ID dokumen
-            
-            # Pastikan field penting ada (untuk mencegah error di aplikasi)
+            data['id'] = doc.id
             if 'description' not in data: data['description'] = 'Penukaran Poin'
             if 'points_spent' not in data: data['points_spent'] = 0
             if 'date' not in data: data['date'] = ''
-            
             history_data.append(data)
             
-        # 2. Urutkan dari yang Paling Baru (Descending by date)
         history_data.sort(key=lambda x: x.get('date', ''), reverse=True)
-
         return api_response('success', 'Data riwayat ditemukan', history_data)
-
     except Exception as e:
-        print(f"Error History API: {e}")
         return api_response('error', str(e))
     
 @app.route('/api/redeem_via_scan', methods=['POST'])
@@ -1193,7 +1141,6 @@ def api_redeem_via_scan():
         if not user_id or points_to_deduct <= 0:
             return api_response('error', 'Data tidak valid')
 
-        # 1. Cek User & Poin Cukup?
         user_ref = db.collection('customers').document(user_id)
         user_doc = user_ref.get()
 
@@ -1201,17 +1148,12 @@ def api_redeem_via_scan():
             return api_response('error', 'User tidak ditemukan')
 
         current_points = user_doc.to_dict().get('points', 0)
-
         if current_points < points_to_deduct:
             return api_response('error', f'Poin tidak cukup. Anda punya {current_points}, butuh {points_to_deduct}.')
 
-        # 2. Kurangi Poin & Simpan History (Batch Write agar aman)
         batch = db.batch()
-
-        # Update Poin User
         batch.update(user_ref, {'points': firestore.Increment(-points_to_deduct)})
 
-        # Simpan History Penukaran
         history_ref = db.collection('point_redemptions').document()
         history_data = {
             'customer_id': user_id,
@@ -1220,7 +1162,6 @@ def api_redeem_via_scan():
             'date': datetime.now().isoformat()
         }
         batch.set(history_ref, history_data)
-
         batch.commit()
 
         return api_response('success', 'Penukaran Berhasil!', {'sisa_poin': current_points - points_to_deduct})
@@ -1235,14 +1176,21 @@ def api_update_profile():
         user_id = request.form.get('user_id')
         if not user_id: return api_response('error', 'User ID tidak ditemukan')
 
-        update_data = {
-            'name': request.form.get('name'),
-            'email': request.form.get('email')
-        }
+        # Ambil Data
+        name = request.form.get('name')
+        email = request.form.get('email')
+        phone = request.form.get('phone') # [BARU] Ambil Phone
         password = request.form.get('password')
+
+        update_data = {}
+        if name: update_data['name'] = name
+        if email: update_data['email'] = email
+        if phone: update_data['phone'] = phone # [BARU] Simpan Phone
+        
         if password and len(password) > 0:
             update_data['password'] = generate_password_hash(password)
 
+        # Handle File Gambar
         file = request.files.get('avatar')
         if file and file.filename != '':
             img_b64 = base64.b64encode(file.read()).decode('utf-8')
@@ -1250,13 +1198,44 @@ def api_update_profile():
             update_data['mimetype'] = file.mimetype
 
         doc_ref = db.collection('customers').document(user_id)
-        if not doc_ref.get().exists: return api_response('error', 'User tidak ditemukan di database')
+        if not doc_ref.get().exists: return api_response('error', 'User tidak ditemukan')
             
         doc_ref.update(update_data)
-        return api_response('success', 'Profil berhasil diperbarui', update_data)
+        
+        # Kembalikan data terbaru agar aplikasi bisa update sesi lokal
+        final_data = doc_ref.get().to_dict()
+        final_data['id'] = user_id
+        # Hapus data berat dari response
+        if 'image_base64' in final_data: del final_data['image_base64']
+        
+        return api_response('success', 'Profil berhasil diperbarui', final_data)
     except Exception as e:
         return api_response('error', f"Gagal update: {str(e)}")
 
+# ==========================================
+# [BARU] API HAPUS AKUN
+# ==========================================
+@app.route('/api/delete_account', methods=['POST'])
+def api_delete_account():
+    try:
+        data = request.json
+        user_id = data.get('user_id')
+        
+        if not user_id: return api_response('error', 'User ID wajib ada')
+
+        # 1. Hapus dari Firestore 'customers'
+        db.collection('customers').document(user_id).delete()
+        
+        # 2. (Opsional) Hapus Auth User jika menggunakan Firebase Auth SDK di server
+        try:
+            auth.delete_user(user_id)
+        except:
+            pass # Lanjut saja jika user auth tidak ditemukan atau error
+
+        return api_response('success', 'Akun berhasil dihapus permanen')
+    except Exception as e:
+        return api_response('error', f"Gagal hapus akun: {str(e)}")
+    
 @app.route('/api/customer_image/<id>')
 def customer_image(id):
     try:
@@ -1269,17 +1248,72 @@ def customer_image(id):
     except Exception: pass
     return redirect("https://cdn.pixabay.com/photo/2015/10/05/22/37/blank-profile-picture-973460_960_720.png")
 
+@app.route('/api/add_review', methods=['POST'])
+def api_add_review_endpoint(): # Renamed to avoid conflict if any
+    try:
+        data = request.json
+        user_id = data.get('user_id')
+        product_id = data.get('product_id')
+        rating = int(data.get('rating'))
+        comment = data.get('comment', '') 
+        qty = int(data.get('qty', 1))
+        
+        if not user_id or not product_id:
+            return api_response('error', 'User ID dan Product ID wajib')
+
+        customer_name = "Pengguna Tanpa Nama"
+        customer_image = ""
+
+        if user_id:
+            user_ref = db.collection('customers').document(user_id)
+            user_doc = user_ref.get()
+            if user_doc.exists:
+                user_data = user_doc.to_dict()
+                customer_name = user_data.get('name', customer_name)
+                c_img = user_data.get('image_base64', '')
+                if len(c_img) < 200 * 1024: 
+                    customer_image = c_img
+
+        review_data = {
+            'user_id': user_id,
+            'customer_name': customer_name,
+            'customer_image': customer_image,
+            'product_id': product_id,
+            'rating': rating,
+            'comment': comment,
+            'qty': qty,
+            'created_at': datetime.now().isoformat()
+        }
+        db.collection('reviews').add(review_data)
+
+        reviews = db.collection('reviews').where('product_id', '==', product_id).stream()
+        total_rating = 0
+        count = 0
+        for r in reviews:
+            rd = r.to_dict()
+            total_rating += rd.get('rating', 0)
+            count += 1
+            
+        new_average = round(total_rating / count, 1) if count > 0 else rating
+
+        db.collection('products').document(product_id).update({
+            'rating': new_average
+        })
+
+        return api_response('success', 'Rating berhasil disimpan', {'new_rating': new_average})
+    except Exception as e:
+        print(f"Error Review: {e}")
+        return api_response('error', str(e))
+
 @app.route('/api/transaction_history/<user_id>', methods=['GET'])
 def api_transaction_history(user_id):
     try:
-        # 1. Ambil daftar Produk ID yang SUDAH direview
         reviewed_pids = []
         reviews_ref = db.collection('reviews').where('user_id', '==', str(user_id)).stream()
         for doc in reviews_ref:
             rev = doc.to_dict()
             reviewed_pids.append(str(rev.get('product_id')))
 
-        # 2. Ambil Transaksi
         transactions = []
         docs_1 = db.collection('transactions').where('user_id', '==', str(user_id)).stream()
         for d in docs_1:
@@ -1294,7 +1328,6 @@ def api_transaction_history(user_id):
                 t['id'] = d.id
                 transactions.append(t)
 
-        # 3. Inject status 'has_reviewed'
         for trx in transactions:
             if 'items' in trx and isinstance(trx['items'], list):
                 for item in trx['items']:
@@ -1307,7 +1340,70 @@ def api_transaction_history(user_id):
     except Exception as e:
         return api_response('error', str(e))
 
-# [MOBILE API] Endpoint Checkout (Kurangi Stok, Simpan Transaksi & Update Poin)
+# [TAMBAHAN] API FAVORITES
+@app.route('/api/favorites/<user_id>', methods=['GET'])
+def api_get_favorites(user_id):
+    try:
+        # Ambil semua favorit milik user
+        docs = db.collection('favorites').where('customer_id', '==', user_id).stream()
+        data = []
+        for doc in docs:
+            d = doc.to_dict()
+            # Kita butuh product_id untuk menandai love di aplikasi
+            data.append({'product_id': d.get('product_id'), 'id': doc.id})
+        return api_response('success', 'Data favorit ditemukan', data)
+    except Exception as e:
+        return api_response('error', str(e))
+
+@app.route('/api/favorites/toggle', methods=['POST'])
+def api_toggle_favorite():
+    try:
+        data = request.json
+        user_id = data.get('user_id')
+        product_id = data.get('product_id')
+        
+        if not user_id or not product_id:
+            return api_response('error', 'Data tidak lengkap')
+
+        # Cek apakah sudah ada?
+        existing = db.collection('favorites')\
+                     .where('customer_id', '==', user_id)\
+                     .where('product_id', '==', product_id)\
+                     .limit(1).stream()
+        
+        found_doc = None
+        for doc in existing:
+            found_doc = doc
+            break
+            
+        if found_doc:
+            # HAPUS (Un-favorite)
+            found_doc.reference.delete()
+            return api_response('success', 'Dihapus dari favorit', {'is_favorite': False})
+        else:
+            # TAMBAH (Favorite)
+            # Ambil detail produk untuk cache nama/harga (opsional)
+            p_doc = db.collection('products').document(product_id).get()
+            p_name = "Unknown"
+            p_price = 0
+            if p_doc.exists:
+                pd = p_doc.to_dict()
+                p_name = pd.get('name', 'Unknown')
+                p_price = pd.get('price', 0)
+
+            db.collection('favorites').add({
+                'customer_id': user_id,
+                'product_id': product_id,
+                'product_name': p_name,
+                'price': int(p_price),
+                'created_at': datetime.now().isoformat()
+            })
+            return api_response('success', 'Ditambahkan ke favorit', {'is_favorite': True})
+
+    except Exception as e:
+        print(f"Error Toggle Fav: {e}")
+        return api_response('error', str(e))
+
 @app.route('/api/checkout', methods=['POST'])
 def api_checkout():
     try:
@@ -1320,7 +1416,6 @@ def api_checkout():
 
         batch = db.batch()
         
-        # 1. AGREGASI ITEM
         aggregated_items = {}
         for item in items:
             pid = str(item.get('product_id') or item.get('id')).strip()
@@ -1330,7 +1425,6 @@ def api_checkout():
             if pid in aggregated_items: aggregated_items[pid] += qty
             else: aggregated_items[pid] = qty
 
-        # 2. VALIDASI & UPDATE STOK & HITUNG TOTAL (Server-Side)
         trx_items_list = []
         total_gross = 0 
         
@@ -1348,14 +1442,10 @@ def api_checkout():
             if current_stock < total_qty:
                 return api_response('error', f"Stok {prod_data.get('name')} tidak cukup (Sisa: {current_stock})")
 
-            # Hitung subtotal item secara akurat di server
             total_gross += price * total_qty
             
-            # --- [FIX CRASH] CEK UKURAN GAMBAR ---
-            # Jika gambar terlalu besar (> 100KB), JANGAN simpan ke history transaksi
-            # agar dokumen tidak melebihi 1MB limit.
             raw_img = prod_data.get('image_base64', '')
-            safe_img = raw_img if len(raw_img) < 100 * 1024 else "" # Simpan string kosong jika berat
+            safe_img = raw_img if len(raw_img) < 100 * 1024 else "" 
 
             trx_items_list.append({
                 'product_id': pid,
@@ -1363,12 +1453,11 @@ def api_checkout():
                 'price': price,
                 'qty': total_qty,
                 'category': prod_data.get('category', '-'),
-                'image_base64': safe_img, # Pake gambar aman
+                'image_base64': safe_img, 
             })
             
             batch.update(prod_ref, {'stock': firestore.Increment(-total_qty)})
         
-        # 3. HITUNG DISKON & GRAND TOTAL
         discount_amount = 0
         voucher_code = data.get('voucher_code')
         
@@ -1380,7 +1469,6 @@ def api_checkout():
         
         points_earned = int(grand_total / EARN_RATE)
 
-        # 4. DATA PELANGGAN (AUTO FILL)
         user_id = data.get('user_id') or data.get('customer_id')
         customer_name = data.get('customer_name', 'Pelanggan Umum')
         
@@ -1391,17 +1479,15 @@ def api_checkout():
             if user_doc.exists:
                 user_data = user_doc.to_dict()
                 customer_name = user_data.get('name', customer_name)
-                # Update Poin
                 batch.update(user_ref, {'points': firestore.Increment(points_earned)})
 
-        # 5. SIMPAN TRANSAKSI
         trx_id = data.get('order_id') or f"TRX-{generate_id()}"
         trx_ref = db.collection('transactions').document(trx_id)
         
         final_data = {
             'order_id': trx_id,
             'user_id': user_id,
-            'customer_name': customer_name, # Pastikan ini tersimpan
+            'customer_name': customer_name, 
             'table_number': data.get('table_number', '-'),
             'voucher_code': voucher_code,
             'payment_method': data.get('payment_method', 'Cash'),
