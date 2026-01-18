@@ -39,15 +39,6 @@
         min-width: 110px;
     }
 
-    /* === CONTENT CARDS === */
-    .card-premium {
-        background: white;
-        border: 1px solid #e5e7eb;
-        border-radius: 16px;
-        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
-        overflow: hidden;
-    }
-
     /* === INFO LIST STYLE === */
     .detail-row {
         display: flex;
@@ -67,7 +58,16 @@
     }
     .table-row { border-bottom: 1px solid #f3f4f6; transition: background 0.15s; }
     .table-row:hover { background-color: #f8fafc; }
-    .table-row td { padding: 1rem; vertical-align: middle; }
+    .table-row td { padding: 1rem; vertical-align: top; } /* Align top agar item list rapi */
+
+    /* Item List Helpers */
+    .item-list-row {
+        height: 28px; /* Tinggi baris item fix agar sejajar antar kolom */
+        display: flex;
+        align-items: center;
+        border-bottom: 1px dashed #f0f0f0;
+    }
+    .item-list-row:last-child { border-bottom: none; }
 
     /* === DECORATIVE ICON === */
     .icon-watermark {
@@ -77,220 +77,223 @@
     }
 </style>
 
-<div class="container py-5" style="max-width: 1100px;">
+<div class="mb-4">
+    <a href="{{ url_for('customers') }}" class="text-decoration-none text-muted fw-bold small hover-primary">
+        <i class="fas fa-arrow-left me-1"></i> Kembali ke Daftar Pelanggan
+    </a>
+</div>
 
-    <div class="mb-4">
-        <a href="{{ url_for('customers') }}" class="text-decoration-none text-muted fw-bold small hover-primary">
-            <i class="fas fa-arrow-left me-1"></i> Kembali ke Daftar Pelanggan
-        </a>
+<div class="row mb-4">
+    <div class="col-12">
+        <div class="profile-header-card p-4 p-lg-5">
+            <div class="d-flex flex-column flex-md-row align-items-center gap-4 position-relative z-1">
+                <div class="profile-avatar shadow-sm">
+                    {{ c.name[:1] | upper }}
+                </div>
+                
+                <div class="text-center text-md-start flex-grow-1">
+                    <h5 class="text-white-50 text-uppercase fw-bold mb-1 small ls-1">Member Profile</h5>
+                    <h2 class="fw-bold mb-1">{{ c.name }}</h2>
+                    <div class="opacity-75 small">
+                        <i class="fas fa-phone-alt me-2"></i>{{ c.phone }}
+                        {% if c.email %}
+                            <span class="mx-2 d-none d-md-inline">•</span>
+                            <i class="fas fa-envelope me-2 ms-0 ms-md-2"></i>{{ c.email }}
+                        {% endif %}
+                    </div>
+                </div>
+
+                <div class="d-flex gap-3">
+                    <div class="stat-badge">
+                        <div class="small text-white-50 text-uppercase fw-bold" style="font-size: 0.65rem;">Poin Reward</div>
+                        <div class="fw-bold fs-4 text-warning">{{ "{:,.0f}".format(c.points|int) }}</div>
+                    </div>
+                    <div class="stat-badge">
+                        <div class="small text-white-50 text-uppercase fw-bold" style="font-size: 0.65rem;">Total Transaksi</div>
+                        <div class="fw-bold fs-4">{{ transactions|length }}</div>
+                    </div>
+                </div>
+            </div>
+            
+            <i class="fas fa-user-circle icon-watermark text-white"></i>
+        </div>
     </div>
+</div>
 
-    <div class="row mb-4">
-        <div class="col-12">
-            <div class="profile-header-card p-4 p-lg-5">
-                <div class="d-flex flex-column flex-md-row align-items-center gap-4 position-relative z-1">
-                    <div class="profile-avatar shadow-sm">
-                        {{ c.name[:1] | upper }}
-                    </div>
-                    
-                    <div class="text-center text-md-start flex-grow-1">
-                        <h5 class="text-white-50 text-uppercase fw-bold mb-1 small ls-1">Member Profile</h5>
-                        <h2 class="fw-bold mb-1">{{ c.name }}</h2>
-                        <div class="opacity-75 small">
-                            <i class="fas fa-phone-alt me-2"></i>{{ c.phone }}
-                            {% if c.email %}
-                                <span class="mx-2 d-none d-md-inline">•</span>
-                                <i class="fas fa-envelope me-2 ms-0 ms-md-2"></i>{{ c.email }}
-                            {% endif %}
+<div class="row g-4">
+    <div class="col-lg-4">
+        <div class="card border-0 shadow-sm rounded-4 h-100 overflow-hidden">
+            <div class="p-4 border-bottom bg-white d-flex justify-content-between align-items-center">
+                <h6 class="fw-bold m-0 text-dark"><i class="fas fa-id-card me-2 text-primary"></i>Informasi Akun</h6>
+                <button class="btn btn-sm btn-light text-primary border shadow-sm rounded-pill px-3" data-bs-toggle="modal" data-bs-target="#editCustomerModal">
+                    <i class="fas fa-pen me-1"></i> Edit
+                </button>
+            </div>
+            <div class="p-4">
+                <div class="mb-3">
+                    <span class="detail-label d-block mb-2">ID Pelanggan</span>
+                    <div class="d-flex align-items-center bg-primary bg-opacity-10 rounded-3 px-3 py-2 border border-primary border-opacity-25 justify-content-between">
+                        <div class="d-flex align-items-center" style="overflow: hidden;">
+                            <i class="fas fa-fingerprint text-primary me-2 opacity-50"></i>
+                            <span class="font-monospace fw-bold text-primary text-truncate" style="font-size: 0.9rem; max-width: 160px;" title="{{ c.id }}">
+                                {{ c.id }}
+                            </span>
                         </div>
+                        <button class="btn btn-sm text-primary p-0 ms-2" onclick="copyToClipboard('{{ c.id }}')" title="Salin ID" style="width: 24px; height: 24px; flex-shrink: 0;">
+                            <i class="far fa-copy"></i>
+                        </button>
                     </div>
+                </div>
 
-                    <div class="d-flex gap-3">
-                        <div class="stat-badge">
-                            <div class="small text-white-50 text-uppercase fw-bold" style="font-size: 0.65rem;">Poin Reward</div>
-                            <div class="fw-bold fs-4 text-warning">{{ "{:,.0f}".format(c.points|int) }}</div>
-                        </div>
-                        <div class="stat-badge">
-                            <div class="small text-white-50 text-uppercase fw-bold" style="font-size: 0.65rem;">Total Transaksi</div>
-                            <div class="fw-bold fs-4">{{ transactions|length }}</div>
-                        </div>
+                <div class="detail-row">
+                    <span class="detail-label">No. WhatsApp</span>
+                    <div class="d-flex align-items-center gap-2">
+                        <span class="detail-value">{{ c.phone }}</span>
+                        <a href="https://wa.me/{{ c.phone }}" target="_blank" class="text-success small"><i class="fab fa-whatsapp"></i></a>
                     </div>
                 </div>
                 
-                <i class="fas fa-user-circle icon-watermark text-white"></i>
+                <div class="detail-row">
+                    <span class="detail-label">Email</span>
+                    <span class="detail-value text-break small" style="max-width: 180px;">{{ c.email or '-' }}</span>
+                </div>
+
+                <div class="detail-row">
+                    <span class="detail-label">Keamanan</span>
+                    <span class="detail-value">
+                        {% if c.password %}
+                            <span class="badge bg-success bg-opacity-10 text-success rounded-pill px-3 py-1 border border-success border-opacity-25">
+                                <i class="fas fa-lock me-1"></i> Terkunci
+                            </span>
+                        {% else %}
+                            <span class="badge bg-secondary bg-opacity-10 text-secondary rounded-pill px-3 py-1 border border-secondary border-opacity-25">
+                                <i class="fas fa-unlock me-1"></i> Tanpa PW
+                            </span>
+                        {% endif %}
+                    </span>
+                </div>
+                
+                <div class="mt-4 pt-3 border-top">
+                    <span class="detail-label d-block mb-2">Alamat Pengiriman</span>
+                    <div class="p-3 bg-light rounded-3 text-dark small border position-relative">
+                        {% if c.address %}
+                            <div class="d-flex">
+                                <i class="fas fa-map-marker-alt text-danger me-2 mt-1"></i>
+                                <span style="line-height: 1.5;">{{ c.address }}</span>
+                            </div>
+                        {% else %}
+                            <div class="text-center py-2 text-muted fst-italic">
+                                Belum ada alamat tersimpan.
+                            </div>
+                        {% endif %}
+                    </div>
+                </div>
             </div>
         </div>
     </div>
 
-    <div class="row g-4">
-        
-        <div class="col-lg-4">
-            <div class="card-premium h-100">
-                <div class="p-4 border-bottom bg-white d-flex justify-content-between align-items-center">
-                    <h6 class="fw-bold m-0 text-dark"><i class="fas fa-id-card me-2 text-primary"></i>Informasi Akun</h6>
-                    <button class="btn btn-sm btn-light text-primary border shadow-sm rounded-pill px-3" data-bs-toggle="modal" data-bs-target="#editCustomerModal">
-                        <i class="fas fa-pen me-1"></i> Edit
-                    </button>
-                </div>
-                <div class="p-4">
-                    
-                    <div class="mb-3">
-                        <span class="detail-label d-block mb-2">ID Pelanggan</span>
-                        <div class="d-flex align-items-center bg-primary bg-opacity-10 rounded-3 px-3 py-2 border border-primary border-opacity-25 justify-content-between">
-                            <div class="d-flex align-items-center" style="overflow: hidden;">
-                                <i class="fas fa-fingerprint text-primary me-2 opacity-50"></i>
-                                <span class="font-monospace fw-bold text-primary text-truncate" style="font-size: 0.9rem; max-width: 160px;" title="{{ c.id }}">
-                                    {{ c.id }}
-                                </span>
-                            </div>
-                            <button class="btn btn-sm text-primary p-0 ms-2" onclick="copyToClipboard('{{ c.id }}')" title="Salin ID" style="width: 24px; height: 24px; flex-shrink: 0;">
-                                <i class="far fa-copy"></i>
-                            </button>
-                        </div>
-                    </div>
-
-                    <div class="detail-row">
-                        <span class="detail-label">No. WhatsApp</span>
-                        <div class="d-flex align-items-center gap-2">
-                            <span class="detail-value">{{ c.phone }}</span>
-                            <a href="https://wa.me/{{ c.phone }}" target="_blank" class="text-success small"><i class="fab fa-whatsapp"></i></a>
-                        </div>
-                    </div>
-                    
-                    <div class="detail-row">
-                        <span class="detail-label">Email</span>
-                        <span class="detail-value text-break small" style="max-width: 180px;">{{ c.email or '-' }}</span>
-                    </div>
-
-                    <div class="detail-row">
-                        <span class="detail-label">Keamanan</span>
-                        <span class="detail-value">
-                            {% if c.password %}
-                                <span class="badge bg-success bg-opacity-10 text-success rounded-pill px-3 py-1 border border-success border-opacity-25">
-                                    <i class="fas fa-lock me-1"></i> Terkunci
-                                </span>
-                            {% else %}
-                                <span class="badge bg-secondary bg-opacity-10 text-secondary rounded-pill px-3 py-1 border border-secondary border-opacity-25">
-                                    <i class="fas fa-unlock me-1"></i> Tanpa PW
-                                </span>
-                            {% endif %}
-                        </span>
-                    </div>
-                    
-                    <div class="mt-4 pt-3 border-top">
-                        <span class="detail-label d-block mb-2">Alamat Pengiriman</span>
-                        <div class="p-3 bg-light rounded-3 text-dark small border position-relative">
-                            {% if c.address %}
-                                <div class="d-flex">
-                                    <i class="fas fa-map-marker-alt text-danger me-2 mt-1"></i>
-                                    <span style="line-height: 1.5;">{{ c.address }}</span>
-                                </div>
-                            {% else %}
-                                <div class="text-center py-2 text-muted fst-italic">
-                                    Belum ada alamat tersimpan.
-                                </div>
-                            {% endif %}
-                        </div>
-                    </div>
-                </div>
+    <div class="col-lg-8">
+        <div class="card border-0 shadow-sm rounded-4 h-100 overflow-hidden">
+            <div class="p-4 border-bottom bg-white">
+                <h6 class="fw-bold m-0 text-dark"><i class="fas fa-history me-2 text-secondary"></i>Riwayat Pesanan</h6>
             </div>
-        </div>
-
-        <div class="col-lg-8">
-            <div class="card-premium h-100">
-                <div class="p-4 border-bottom bg-white">
-                    <h6 class="fw-bold m-0 text-dark"><i class="fas fa-history me-2 text-secondary"></i>Riwayat Pesanan</h6>
-                </div>
-                <div class="table-responsive">
-                    <table class="table mb-0 align-middle w-100">
-                        <thead class="table-header">
-                            <tr>
-                                <th class="ps-4 py-3">ID & Waktu</th>
-                                <th class="py-3">Detail Belanja (Items)</th>
-                                <th class="py-3 text-center">Metode</th>
-                                <th class="py-3 text-end pe-4">Total Bayar</th>
-                            </tr>
-                        </thead>
-                        <tbody class="bg-white">
-                            {% for t in transactions %}
-                            <tr class="table-row">
-                                <td class="ps-4" style="width: 20%;">
-                                    <div class="fw-bold text-primary small font-monospace">{{ t.order_id }}</div>
-                                    <div class="text-dark small fw-bold mt-1">
-                                        {{ t.date.strftime('%d %b %Y') }}
+            <div class="table-responsive">
+                <table class="table mb-0 align-middle w-100">
+                    <thead class="table-header">
+                        <tr>
+                            <th class="ps-4 py-3" style="width: 20%;">ID & Waktu</th>
+                            <th class="py-3" style="width: 35%;">Item Produk</th> <th class="py-3 text-center" style="width: 10%;">Qty</th> <th class="py-3 text-center" style="width: 15%;">Metode</th>
+                            <th class="py-3 text-end pe-4" style="width: 20%;">Total</th>
+                        </tr>
+                    </thead>
+                    <tbody class="bg-white">
+                        {% for t in transactions %}
+                        <tr class="table-row">
+                            <td class="ps-4">
+                                <div class="fw-bold text-primary small font-monospace">{{ t.order_id }}</div>
+                                <div class="text-dark small fw-bold mt-1">
+                                    {{ t.date.strftime('%d %b %Y') }}
+                                </div>
+                                <div class="text-muted x-small">
+                                    {{ t.date.strftime('%H:%M') }} WIB
+                                </div>
+                                {% if t.voucher_code %}
+                                    <div class="mt-2">
+                                        <span class="badge bg-success bg-opacity-10 text-success border border-success border-opacity-25 rounded-pill" style="font-size: 0.6rem;">
+                                            <i class="fas fa-ticket-alt me-1"></i> {{ t.voucher_code }}
+                                        </span>
                                     </div>
-                                    <div class="text-muted x-small">
-                                        {{ t.date.strftime('%H:%M') }} WIB
-                                    </div>
-                                </td>
-                                
-                                <td style="width: 40%;">
-                                    {% if t.items %}
-                                        <div class="d-flex flex-column gap-1">
-                                            {% for item in t.items %}
-                                            <div class="d-flex justify-content-between align-items-center small border-bottom border-light pb-1 mb-1">
-                                                <span class="text-dark fw-medium text-truncate" style="max-width: 150px;">
-                                                    {{ item.product_name }}
-                                                </span>
-                                                <span class="badge bg-light text-secondary border">x{{ item.qty }}</span>
-                                            </div>
-                                            {% endfor %}
-                                        </div>
-                                    {% else %}
-                                        <div class="small text-dark fw-bold">
-                                            {{ t.product.name if t.product else (t.product_name or 'Produk Item') }}
-                                        </div>
-                                        <div class="mt-1">
-                                            <span class="badge bg-light text-secondary border">x{{ t.qty or t.quantity or 1 }}</span>
-                                        </div>
-                                    {% endif %}
-                                    
-                                    {% if t.voucher_code %}
-                                        <div class="mt-2">
-                                            <span class="badge bg-success bg-opacity-10 text-success border border-success border-opacity-25 rounded-pill" style="font-size: 0.65rem;">
-                                                <i class="fas fa-ticket-alt me-1"></i> {{ t.voucher_code }}
+                                {% endif %}
+                            </td>
+                            
+                            <td>
+                                {% if t.items %}
+                                    {% for item in t.items %}
+                                        <div class="item-list-row">
+                                            <span class="text-dark fw-medium text-truncate small" title="{{ item.product_name }}">
+                                                {{ item.product_name }}
                                             </span>
                                         </div>
-                                    {% endif %}
-                                </td>
-                                
-                                <td class="text-center">
-                                    <span class="badge bg-secondary bg-opacity-10 text-dark border rounded-pill px-3">
-                                        {{ t.payment_method }}
-                                    </span>
-                                </td>
-
-                                <td class="text-end pe-4">
-                                    {% if t.summary and t.summary.grand_total %}
-                                        <div class="fw-bold text-dark font-monospace">
-                                            Rp {{ "{:,.0f}".format(t.summary.grand_total|float).replace(',', '.') }}
-                                        </div>
-                                        {% if t.summary.discount > 0 %}
-                                            <div class="text-danger small" style="font-size: 0.7rem;">
-                                                (Hemat Rp {{ "{:,.0f}".format(t.summary.discount|float).replace(',', '.') }})
-                                            </div>
-                                        {% endif %}
-                                    {% else %}
-                                        <div class="fw-bold text-dark font-monospace">
-                                            Rp {{ "{:,.0f}".format(t.final_price|float).replace(',', '.') }}
-                                        </div>
-                                    {% endif %}
-                                </td>
-                            </tr>
-                            {% else %}
-                            <tr>
-                                <td colspan="4" class="text-center py-5">
-                                    <div class="d-flex flex-column align-items-center justify-content-center text-muted opacity-50">
-                                        <i class="fas fa-shopping-basket fa-3x mb-3"></i>
-                                        <h6 class="fw-bold">Belum Ada Transaksi</h6>
-                                        <p class="mb-0 small">Pelanggan ini belum melakukan pembelian.</p>
+                                    {% endfor %}
+                                {% else %}
+                                    <div class="item-list-row">
+                                        <span class="text-dark fw-medium small">
+                                            {{ t.product.name if t.product else (t.product_name or 'Produk Item') }}
+                                        </span>
                                     </div>
-                                </td>
-                            </tr>
-                            {% endfor %}
-                        </tbody>
-                    </table>
-                </div>
+                                {% endif %}
+                            </td>
+
+                            <td class="text-center">
+                                {% if t.items %}
+                                    {% for item in t.items %}
+                                        <div class="item-list-row justify-content-center">
+                                            <span class="badge bg-light text-secondary border">x{{ item.qty }}</span>
+                                        </div>
+                                    {% endfor %}
+                                {% else %}
+                                    <div class="item-list-row justify-content-center">
+                                        <span class="badge bg-light text-secondary border">x{{ t.qty or t.quantity or 1 }}</span>
+                                    </div>
+                                {% endif %}
+                            </td>
+                            
+                            <td class="text-center" style="vertical-align: middle;">
+                                <span class="badge bg-secondary bg-opacity-10 text-dark border rounded-pill px-3">
+                                    {{ t.payment_method }}
+                                </span>
+                            </td>
+
+                            <td class="text-end pe-4" style="vertical-align: middle;">
+                                {% if t.summary and t.summary.grand_total %}
+                                    <div class="fw-bold text-dark font-monospace">
+                                        Rp {{ "{:,.0f}".format(t.summary.grand_total|float).replace(',', '.') }}
+                                    </div>
+                                    {% if t.summary.discount > 0 %}
+                                        <div class="text-danger small" style="font-size: 0.7rem;">
+                                            Diskon Rp {{ "{:,.0f}".format(t.summary.discount|float).replace(',', '.') }}
+                                        </div>
+                                    {% endif %}
+                                {% else %}
+                                    <div class="fw-bold text-dark font-monospace">
+                                        Rp {{ "{:,.0f}".format(t.final_price|float).replace(',', '.') }}
+                                    </div>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% else %}
+                        <tr>
+                            <td colspan="5" class="text-center py-5">
+                                <div class="d-flex flex-column align-items-center justify-content-center text-muted opacity-50">
+                                    <i class="fas fa-shopping-basket fa-3x mb-3"></i>
+                                    <h6 class="fw-bold">Belum Ada Transaksi</h6>
+                                    <p class="mb-0 small">Pelanggan ini belum melakukan pembelian.</p>
+                                </div>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
             </div>
         </div>
     </div>

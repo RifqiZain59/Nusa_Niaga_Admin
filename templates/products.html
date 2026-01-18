@@ -10,16 +10,7 @@
         color: #1f2937;
     }
 
-    /* Card Style - Clean & Flat */
-    .card-premium {
-        background: white;
-        border: 1px solid #e5e7eb;
-        box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06);
-        border-radius: 12px;
-        overflow: hidden;
-    }
-
-    /* --- STAT CARD BARU (Total Product) --- */
+    /* --- STAT CARD (Total Product) --- */
     .stat-card {
         background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%); /* Blue Gradient */
         border-radius: 16px;
@@ -27,11 +18,11 @@
         position: relative;
         overflow: hidden;
         border: none;
-        box-shadow: 0 4px 6px -1px rgba(59, 130, 246, 0.2);
-        transition: transform 0.2s;
+        box-shadow: 0 10px 25px rgba(37, 99, 235, 0.25); /* Sesuaikan shadow dengan transaksi */
+        transition: transform 0.3s ease;
     }
     .stat-card:hover {
-        transform: translateY(-3px);
+        transform: translateY(-5px);
     }
 
     /* Ikon Transparan Melayang (Watermark) */
@@ -39,26 +30,37 @@
         position: absolute;
         bottom: -15px;
         right: -15px;
-        font-size: 6rem;   /* Ukuran Besar */
+        font-size: 6rem;
         color: white;
-        opacity: 0.15;     /* Transparan */
+        opacity: 0.15;
         transform: rotate(-15deg);
         pointer-events: none;
         z-index: 0;
     }
 
-    /* Search Input */
+    /* Search Input Modern (Samakan dengan Transaksi) */
     .search-input {
         background-color: #f9fafb;
         border: 1px solid #e5e7eb;
         color: #374151;
         font-size: 0.875rem;
+        padding-left: 2.5rem; /* Ruang untuk ikon */
         transition: all 0.2s;
+        border-radius: 10px;
     }
     .search-input:focus {
         background-color: white;
         border-color: #3b82f6;
-        box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+        box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.1);
+    }
+    .search-icon {
+        position: absolute;
+        left: 1rem;
+        top: 50%;
+        transform: translateY(-50%);
+        color: #9ca3af;
+        pointer-events: none;
+        font-size: 0.9rem;
     }
 
     /* Table Styles */
@@ -73,7 +75,7 @@
     }
     .table-row { transition: background-color 0.15s ease; border-bottom: 1px solid #f3f4f6; }
     .table-row:last-child { border-bottom: none; }
-    .table-row:hover { background-color: #f9fafb; }
+    .table-row:hover { background-color: #f8fafc; }
     .table-row td { padding: 1rem; vertical-align: middle; }
 
     /* Buttons */
@@ -102,68 +104,68 @@
     .page-item.active .page-link-clean { background-color: #3b82f6; border-color: #3b82f6; color: white; }
 </style>
 
-<div class="container py-5" style="max-width: 1200px;">
-    
-    <div class="d-flex justify-content-between align-items-end mb-4">
-        <div>
-            <h3 class="fw-bold text-dark mb-1" style="letter-spacing: -0.5px;">Produk</h3>
-            <p class="text-muted small mb-0">Kelola database inventaris toko Anda.</p>
+<div class="d-flex justify-content-between align-items-end mb-4">
+    <div>
+        <h4 class="fw-bold text-dark mb-1">Produk</h4>
+        <p class="text-muted small mb-0">Kelola database inventaris toko Anda.</p>
+    </div>
+    <div>
+        <a href="{{ url_for('add') }}" class="btn btn-primary px-4 fw-bold shadow-primary rounded-3">
+            <i class="fas fa-plus me-2"></i>Produk Baru
+        </a>
+    </div>
+</div>
+
+<div class="row mb-4">
+    <div class="col-md-6 col-lg-4">
+        <div class="card stat-card h-100">
+            <div class="card-body p-4 position-relative z-1">
+                <h6 class="text-white opacity-75 text-uppercase fw-bold mb-2 small" style="letter-spacing: 1px;">Total Produk</h6>
+                <h2 class="mb-0 fw-bold display-4">{{ products|length }}</h2>
+                <span class="small text-white opacity-75">SKU Terdaftar</span>
+            </div>
+            <i class="fas fa-boxes icon-watermark"></i>
         </div>
-        <div>
-            <a href="{{ url_for('add') }}" class="btn btn-primary-soft px-4 py-2 rounded-3 shadow-sm">
-                <i class="fas fa-plus me-2"></i>Produk Baru
-            </a>
+    </div>
+</div>
+
+<div class="card border-0 shadow-sm rounded-4 overflow-hidden">
+    
+    <div class="p-3 border-bottom d-flex flex-column flex-md-row justify-content-between align-items-center bg-white gap-3">
+        
+        <div class="position-relative w-100 w-md-auto" style="min-width: 300px;">
+            <i class="fas fa-search search-icon"></i>
+            <input type="text" id="searchInput" class="form-control search-input py-2" placeholder="Cari nama, SKU, kategori...">
+        </div>
+        
+        <div class="d-flex align-items-center gap-2">
+            <span class="text-muted small fw-medium">Menampilkan <span id="totalItems" class="text-dark fw-bold">0</span> Data</span>
+            <div class="vr mx-2 text-secondary opacity-25"></div>
+            <div class="dropdown">
+                <button class="btn btn-white btn-sm border text-muted dropdown-toggle rounded-3" type="button" data-bs-toggle="dropdown">
+                    <i class="fas fa-cog me-1"></i> Opsi
+                </button>
+                <ul class="dropdown-menu dropdown-menu-end border-0 shadow-lg mt-1 rounded-3">
+                    <li>
+                        <a class="dropdown-item text-danger small" href="{{ url_for('reset_products') }}" onclick="return confirm('Reset semua data?')">
+                            <i class="fas fa-trash-alt me-2"></i>Reset Database
+                        </a>
+                    </li>
+                </ul>
+            </div>
         </div>
     </div>
 
-    <div class="row mb-4">
-        <div class="col-md-4">
-            <div class="stat-card p-4 h-100">
-                <div class="position-relative" style="z-index: 2;">
-                    <h6 class="text-white opacity-75 text-uppercase fw-bold mb-2" style="font-size: 0.75rem; letter-spacing: 1px;">Total Produk</h6>
-                    <h2 class="mb-0 fw-bold display-4">{{ products|length }}</h2>
-                    <span class="small text-white opacity-75">SKU Terdaftar</span>
-                </div>
-                <i class="fas fa-boxes icon-watermark"></i>
-            </div>
-        </div>
-        </div>
-
-    <div class="card-premium overflow-hidden">
-        
-        <div class="p-3 border-bottom d-flex justify-content-between align-items-center bg-white gap-3 flex-wrap">
-            <div class="position-relative" style="min-width: 300px;">
-                <i class="fas fa-search text-secondary position-absolute top-50 start-0 translate-middle-y ms-3" style="font-size: 0.85rem;"></i>
-                <input type="text" id="searchInput" class="form-control search-input rounded-3 ps-5 py-2" placeholder="Cari nama, SKU, kategori...">
-            </div>
-            
-            <div class="d-flex align-items-center gap-2">
-                <span class="text-muted small fw-medium">Showing: <span id="totalItems" class="text-dark fw-bold">0</span> Result</span>
-                <div class="vr mx-2 text-secondary opacity-25"></div>
-                <div class="dropdown">
-                    <button class="btn btn-white btn-sm border text-muted dropdown-toggle" type="button" data-bs-toggle="dropdown">
-                        <i class="fas fa-cog me-1"></i> Opsi
-                    </button>
-                    <ul class="dropdown-menu dropdown-menu-end border-0 shadow-lg mt-1">
-                        <li>
-                            <a class="dropdown-item text-danger small" href="{{ url_for('reset_products') }}" onclick="return confirm('Reset semua data?')">
-                                <i class="fas fa-trash-alt me-2"></i>Reset Database
-                            </a>
-                        </li>
-                    </ul>
-                </div>
-            </div>
-        </div>
-
+    <div class="card-body p-0">
         <div class="table-responsive">
-            <table class="table mb-0 align-middle w-100">
-                <thead class="table-header">
+            <table class="table mb-0 align-middle w-100 table-hover">
+                <thead class="table-header bg-light">
                     <tr>
                         <th class="ps-4 py-3 fw-bold">Item & Nama</th>
                         <th class="py-3 fw-bold">Kategori</th>
                         <th class="py-3 fw-bold text-end">Harga</th>
                         <th class="py-3 fw-bold ps-4">Status Stok</th>
-                        <th class="py-3 fw-bold text-end pe-4"></th>
+                        <th class="py-3 fw-bold text-end pe-4">Aksi</th>
                     </tr>
                 </thead>
                 <tbody id="tableBody" class="bg-white">
@@ -218,10 +220,10 @@
 
                         <td class="text-end pe-4">
                             <div class="d-flex justify-content-end gap-2">
-                                <a href="{{ url_for('edit', id=product.id) }}" class="btn btn-sm btn-white border text-secondary shadow-sm" title="Edit">
+                                <a href="{{ url_for('edit', id=product.id) }}" class="btn btn-sm btn-white border text-secondary shadow-sm rounded-2" title="Edit">
                                     <i class="fas fa-pencil-alt small"></i>
                                 </a>
-                                <a href="{{ url_for('delete', id=product.id) }}" class="btn btn-sm btn-outline-danger-soft border-0" onclick="return confirm('Hapus item ini?')" title="Hapus">
+                                <a href="{{ url_for('delete', id=product.id) }}" class="btn btn-sm btn-outline-danger-soft border-0 rounded-2" onclick="return confirm('Hapus item ini?')" title="Hapus">
                                     <i class="fas fa-trash-alt small"></i>
                                 </a>
                             </div>
@@ -242,7 +244,9 @@
             </table>
 
             <div id="noResult" class="text-center py-5 d-none">
-                <span class="text-muted small">Pencarian tidak ditemukan.</span>
+                <i class="fas fa-search fa-3x text-muted opacity-25 mb-3"></i>
+                <h6 class="text-dark fw-bold">Tidak ditemukan</h6>
+                <p class="text-muted small">Coba kata kunci lain.</p>
             </div>
         </div>
         
@@ -259,7 +263,7 @@
 
 <script>
     document.addEventListener('DOMContentLoaded', function() {
-        const rowsPerPage = 8;
+        const rowsPerPage = 10; // Menyesuaikan jumlah baris agar lebih pas di layar penuh
         
         const tableBody = document.getElementById('tableBody');
         const rows = Array.from(tableBody.querySelectorAll('.product-row'));
@@ -270,7 +274,7 @@
         let currentPage = 1;
         let filteredRows = rows;
 
-        // Update count di toolbar pencarian
+        // Update count awal
         document.getElementById('totalItems').innerText = rows.length;
 
         function renderTable() {
@@ -350,7 +354,7 @@
                 const category = categoryEl ? categoryEl.innerText.toLowerCase() : '';
                 return name.includes(term) || category.includes(term);
             });
-            document.getElementById('totalItems').innerText = filteredRows.length; // Update angka hasil pencarian
+            document.getElementById('totalItems').innerText = filteredRows.length;
             currentPage = 1;
             renderTable();
         });

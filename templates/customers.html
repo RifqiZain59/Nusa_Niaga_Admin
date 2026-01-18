@@ -31,7 +31,10 @@
         flex-direction: column;
         justify-content: center;
         padding: 1.5rem;
+        box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+        transition: transform 0.2s;
     }
+    .stat-card:hover { transform: translateY(-5px); }
     .stat-blue { background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%); }
     .stat-purple { background: linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%); }
     
@@ -96,131 +99,128 @@
     <p class="small fw-bold">Tanggal Cetak: <span id="print_date_display"></span></p>
 </div>
 
-<div class="container py-5" style="max-width: 1200px;">
-
-    <div class="d-flex justify-content-between align-items-end mb-4 no-print">
-        <div>
-            <h3 class="fw-bold text-dark mb-1">Loyalty Program</h3>
-            <p class="text-muted small mb-0">Kelola poin pelanggan dan penukaran hadiah.</p>
-        </div>
-        <div class="d-flex gap-2">
-            <button onclick="shareToWhatsApp()" class="btn btn-success text-white fw-bold px-3 shadow-sm rounded-3">
-                <i class="fab fa-whatsapp me-2"></i> Laporan WA
-            </button>
-            <button onclick="printLaporan()" class="btn btn-outline-secondary fw-bold px-3 shadow-sm rounded-3">
-                <i class="fas fa-print me-2"></i> Cetak PDF
-            </button>
-        </div>
+<div class="d-flex justify-content-between align-items-end mb-4 no-print">
+    <div>
+        <h4 class="fw-bold text-dark mb-1">Loyalty Program</h4>
+        <p class="text-muted small mb-0">Kelola poin pelanggan dan penukaran hadiah.</p>
     </div>
+    <div class="d-flex gap-2">
+        <button onclick="shareToWhatsApp()" class="btn btn-success text-white fw-bold px-3 shadow-sm rounded-3">
+            <i class="fab fa-whatsapp me-2"></i> Laporan WA
+        </button>
+        <button onclick="printLaporan()" class="btn btn-outline-secondary fw-bold px-3 shadow-sm rounded-3">
+            <i class="fas fa-print me-2"></i> Cetak PDF
+        </button>
+    </div>
+</div>
 
-    <div class="row g-4 mb-4 no-print">
-        <div class="col-md-4">
-            <div class="card-premium p-4 h-100 d-flex align-items-center bg-white">
-                <div class="rounded-circle bg-info bg-opacity-10 p-3 me-3 text-info">
-                    <i class="fas fa-exchange-alt fa-lg"></i>
-                </div>
-                <div>
-                    <small class="text-uppercase text-muted fw-bold" style="font-size: 0.7rem;">Nilai Tukar</small>
-                    <h5 class="fw-bold text-dark mb-0">1 Poin = Rp 5.000</h5>
-                </div>
+<div class="row g-4 mb-4 no-print">
+    <div class="col-md-4">
+        <div class="card card-premium p-4 h-100 d-flex flex-row align-items-center bg-white border-0 shadow-sm rounded-4">
+            <div class="rounded-circle bg-info bg-opacity-10 p-3 me-3 text-info">
+                <i class="fas fa-exchange-alt fa-lg"></i>
             </div>
-        </div>
-        <div class="col-md-4">
-            <div class="stat-card stat-blue">
-                <h6 class="text-white-50 text-uppercase fw-bold small mb-1">Total Member</h6>
-                <h2 class="fw-bold mb-0 display-6">{{ customers|length }}</h2>
-                <i class="fas fa-users icon-watermark"></i>
-            </div>
-        </div>
-        <div class="col-md-4">
-            <div class="stat-card stat-purple">
-                <h6 class="text-white-50 text-uppercase fw-bold small mb-1">Total Poin Aktif</h6>
-                {% set total_points = customers | sum(attribute='points') %}
-                <h2 class="fw-bold mb-0 display-6">{{ total_points }}</h2>
-                <i class="fas fa-coins icon-watermark"></i>
+            <div>
+                <small class="text-uppercase text-muted fw-bold" style="font-size: 0.7rem;">Nilai Tukar</small>
+                <h5 class="fw-bold text-dark mb-0">1 Poin = Rp 5.000</h5>
             </div>
         </div>
     </div>
+    <div class="col-md-4">
+        <div class="stat-card stat-blue shadow-sm">
+            <h6 class="text-white-50 text-uppercase fw-bold small mb-1">Total Member</h6>
+            <h2 class="fw-bold mb-0 display-6">{{ customers|length }}</h2>
+            <i class="fas fa-users icon-watermark"></i>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="stat-card stat-purple shadow-sm">
+            <h6 class="text-white-50 text-uppercase fw-bold small mb-1">Total Poin Aktif</h6>
+            {% set total_points = customers | sum(attribute='points') %}
+            <h2 class="fw-bold mb-0 display-6">{{ total_points }}</h2>
+            <i class="fas fa-coins icon-watermark"></i>
+        </div>
+    </div>
+</div>
 
-    <div class="row g-4">
-        <div class="col-lg-8">
-            <div class="card-premium h-100">
-                <div class="p-4 border-bottom bg-white d-flex justify-content-between align-items-center">
-                    <h6 class="fw-bold m-0 text-dark"><i class="fas fa-list me-2 text-primary"></i>Daftar Member</h6>
-                </div>
-                <div class="table-responsive">
-                    <table class="table mb-0 align-middle w-100" id="customerTable">
-                        <thead class="table-header">
-                            <tr>
-                                <th class="ps-4 py-3">Pelanggan</th>
-                                <th class="py-3 text-center">Sisa Poin</th>
-                                <th class="py-3 text-end">Valuasi (Rp)</th>
-                                <th class="py-3 text-end pe-4 no-print">Aksi</th>
-                            </tr>
-                        </thead>
-                        <tbody class="bg-white">
-                            {% for c in customers %}
-                            <tr class="table-row customer-row">
-                                <td class="ps-4 py-3">
-                                    <a href="{{ url_for('customer_detail', id=c.id) }}" class="fw-bold text-decoration-none text-dark name-cell">{{ c.name }}</a>
-                                    <div class="small text-muted phone-cell">{{ c.phone }}</div>
-                                </td>
-                                <td class="text-center">
-                                    <span class="badge bg-primary bg-opacity-10 text-primary border border-primary border-opacity-25 rounded-pill px-3 point-cell" data-points="{{ c.points }}">
-                                        {{ c.points }} Poin
-                                    </span>
-                                </td>
-                                <td class="text-end fw-bold text-dark font-monospace">
-                                    Rp {{ "{:,.0f}".format(c.points * 5000) }}
-                                </td>
-                                <td class="text-end pe-4 no-print">
-                                    <button type="button" class="btn btn-sm btn-outline-primary shadow-sm rounded-3" 
-                                            onclick="openCatalogModal(this)" 
-                                            data-id="{{ c.id }}" data-name="{{ c.name }}" data-points="{{ c.points }}">
-                                        <i class="fas fa-gift me-1"></i> Tukar
-                                    </button>
-                                </td>
-                            </tr>
-                            {% else %}
-                            <tr><td colspan="4" class="text-center py-5 text-muted">Belum ada data pelanggan.</td></tr>
-                            {% endfor %}
-                        </tbody>
-                    </table>
-                </div>
+<div class="row g-4">
+    <div class="col-lg-8">
+        <div class="card border-0 shadow-sm rounded-4 overflow-hidden h-100">
+            <div class="p-4 border-bottom bg-white d-flex justify-content-between align-items-center">
+                <h6 class="fw-bold m-0 text-dark"><i class="fas fa-list me-2 text-primary"></i>Daftar Member</h6>
+            </div>
+            <div class="table-responsive">
+                <table class="table mb-0 align-middle w-100" id="customerTable">
+                    <thead class="table-header bg-light">
+                        <tr>
+                            <th class="ps-4 py-3">Pelanggan</th>
+                            <th class="py-3 text-center">Sisa Poin</th>
+                            <th class="py-3 text-end">Valuasi (Rp)</th>
+                            <th class="py-3 text-end pe-4 no-print">Aksi</th>
+                        </tr>
+                    </thead>
+                    <tbody class="bg-white">
+                        {% for c in customers %}
+                        <tr class="table-row customer-row">
+                            <td class="ps-4 py-3">
+                                <a href="{{ url_for('customer_detail', id=c.id) }}" class="fw-bold text-decoration-none text-dark name-cell">{{ c.name }}</a>
+                                <div class="small text-muted phone-cell">{{ c.phone }}</div>
+                            </td>
+                            <td class="text-center">
+                                <span class="badge bg-primary bg-opacity-10 text-primary border border-primary border-opacity-25 rounded-pill px-3 point-cell" data-points="{{ c.points }}">
+                                    {{ c.points }} Poin
+                                </span>
+                            </td>
+                            <td class="text-end fw-bold text-dark font-monospace">
+                                Rp {{ "{:,.0f}".format(c.points * 5000) }}
+                            </td>
+                            <td class="text-end pe-4 no-print">
+                                <button type="button" class="btn btn-sm btn-outline-primary shadow-sm rounded-3" 
+                                        onclick="openCatalogModal(this)" 
+                                        data-id="{{ c.id }}" data-name="{{ c.name }}" data-points="{{ c.points }}">
+                                    <i class="fas fa-gift me-1"></i> Tukar
+                                </button>
+                            </td>
+                        </tr>
+                        {% else %}
+                        <tr><td colspan="4" class="text-center py-5 text-muted">Belum ada data pelanggan.</td></tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
             </div>
         </div>
+    </div>
 
-        <div class="col-lg-4">
-            <div class="card-premium h-100">
-                <div class="p-4 border-bottom bg-white">
-                    <h6 class="fw-bold m-0 text-dark"><i class="fas fa-history me-2 text-warning"></i>Riwayat Penukaran</h6>
-                </div>
-                <div class="table-responsive">
-                    <table class="table mb-0 align-middle w-100 small">
-                        <thead class="bg-light text-muted">
-                            <tr>
-                                <th class="ps-4 py-2">Info</th>
-                                <th class="text-end pe-4 py-2">Poin</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {% for log in history %}
-                            <tr class="history-row border-bottom">
-                                <td class="ps-4 py-3">
-                                    <div class="fw-bold text-dark hist-name">{{ log.customer.name }}</div>
-                                    <div class="text-muted small hist-desc">{{ log.description }}</div>
-                                    <div class="text-muted x-small mt-1 hist-date" style="font-size: 0.7rem;">{{ log.date.strftime('%d/%m %H:%M') }}</div>
-                                </td>
-                                <td class="text-end pe-4 text-danger fw-bold hist-points">
-                                    -{{ log.points_spent }}
-                                </td>
-                            </tr>
-                            {% else %}
-                            <tr><td colspan="2" class="text-center py-4 text-muted">Belum ada aktivitas.</td></tr>
-                            {% endfor %}
-                        </tbody>
-                    </table>
-                </div>
+    <div class="col-lg-4">
+        <div class="card border-0 shadow-sm rounded-4 overflow-hidden h-100">
+            <div class="p-4 border-bottom bg-white">
+                <h6 class="fw-bold m-0 text-dark"><i class="fas fa-history me-2 text-warning"></i>Riwayat Penukaran</h6>
+            </div>
+            <div class="table-responsive">
+                <table class="table mb-0 align-middle w-100 small">
+                    <thead class="bg-light text-muted">
+                        <tr>
+                            <th class="ps-4 py-2">Info</th>
+                            <th class="text-end pe-4 py-2">Poin</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for log in history %}
+                        <tr class="history-row border-bottom">
+                            <td class="ps-4 py-3">
+                                <div class="fw-bold text-dark hist-name">{{ log.customer.name }}</div>
+                                <div class="text-muted small hist-desc">{{ log.description }}</div>
+                                <div class="text-muted x-small mt-1 hist-date" style="font-size: 0.7rem;">{{ log.date.strftime('%d/%m %H:%M') }}</div>
+                            </td>
+                            <td class="text-end pe-4 text-danger fw-bold hist-points">
+                                -{{ log.points_spent }}
+                            </td>
+                        </tr>
+                        {% else %}
+                        <tr><td colspan="2" class="text-center py-4 text-muted">Belum ada aktivitas.</td></tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
             </div>
         </div>
     </div>
@@ -317,6 +317,10 @@
                         </div>
                     </div>
                 </div>
+                <div class="modal-footer border-top bg-white py-3">
+                    <button type="button" class="btn btn-link text-muted text-decoration-none" data-bs-dismiss="modal">Batal</button>
+                    <button type="submit" class="btn btn-primary px-4 fw-bold shadow-sm rounded-pill">Konfirmasi Penukaran</button>
+                </div>
             </form>
         </div>
     </div>
@@ -388,12 +392,10 @@
     function selectItem(pts, name) {
         if(pts > currentCustomerPoints) { 
             alert(`Poin tidak cukup! (Butuh: ${pts}, Punya: ${currentCustomerPoints})`);
-            // Reset radio button
+            // Reset radio button (logic manual karena behavior radio)
             setTimeout(() => {
                 let radios = document.getElementsByName('selected_item');
-                radios.forEach(r => { if(r.value == pts) r.checked = false; }); // Uncheck logic simpel
-                // Karena radio button HTML standard sulit di-uncheck programmatically tanpa loop spesifik, 
-                // kita force reset tampilan placeholder:
+                radios.forEach(r => { if(r.value == pts) r.checked = false; });
                 document.getElementById('qr_placeholder').style.display = 'block';
                 document.getElementById('qr_result').style.display = 'none';
             }, 100);

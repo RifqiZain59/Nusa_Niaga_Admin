@@ -9,15 +9,6 @@
         background-color: #f3f4f6;
     }
 
-    /* === CARD STYLES === */
-    .card-premium {
-        background: white;
-        border: 1px solid #e5e7eb;
-        border-radius: 16px;
-        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
-        overflow: hidden;
-    }
-
     /* === STATS CARD (ROSE THEME) === */
     .stat-card-rose {
         background: linear-gradient(135deg, #f43f5e 0%, #e11d48 100%);
@@ -26,8 +17,8 @@
         position: relative;
         overflow: hidden;
         border: none;
-        box-shadow: 0 10px 15px -3px rgba(225, 29, 72, 0.3);
-        transition: transform 0.2s;
+        box-shadow: 0 10px 25px rgba(225, 29, 72, 0.25);
+        transition: transform 0.3s ease;
     }
     .stat-card-rose:hover { transform: translateY(-5px); }
     
@@ -39,7 +30,9 @@
         overflow: hidden;
         color: #1f2937;
         box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+        transition: transform 0.3s ease;
     }
+    .stat-card-white:hover { transform: translateY(-5px); }
 
     /* WATERMARK ICON */
     .icon-watermark {
@@ -47,8 +40,27 @@
         font-size: 6rem; color: white; opacity: 0.15;
         transform: rotate(-15deg); pointer-events: none;
     }
-    .icon-watermark-dark {
-        color: #1f2937; opacity: 0.05;
+    .icon-watermark-dark { color: #1f2937; opacity: 0.05; }
+
+    /* === SEARCH BAR === */
+    .search-input {
+        background-color: #f9fafb;
+        border: 1px solid #e5e7eb;
+        color: #374151;
+        font-size: 0.875rem;
+        padding-left: 2.5rem; /* Ruang untuk ikon */
+        transition: all 0.2s;
+        border-radius: 10px;
+    }
+    .search-input:focus {
+        background-color: white;
+        border-color: #f43f5e;
+        box-shadow: 0 0 0 4px rgba(244, 63, 94, 0.1);
+    }
+    .search-icon {
+        position: absolute; left: 1rem; top: 50%;
+        transform: translateY(-50%); color: #9ca3af;
+        pointer-events: none; font-size: 0.9rem;
     }
 
     /* === TABLE STYLES === */
@@ -57,7 +69,7 @@
         color: #6b7280; font-weight: 600; border-bottom: 1px solid #e5e7eb;
     }
     .table-row { border-bottom: 1px solid #f3f4f6; transition: background 0.15s; }
-    .table-row:hover { background-color: #fff1f2; } /* Merah muda sangat pudar saat hover */
+    .table-row:hover { background-color: #fff1f2; } /* Merah muda sangat pudar */
     .table-row td { padding: 1rem; vertical-align: middle; }
 
     /* === IMAGES & BADGES === */
@@ -68,7 +80,7 @@
     .customer-avatar {
         width: 32px; height: 32px; border-radius: 50%;
         background: #f3f4f6; display: flex; align-items: center; justify-content: center;
-        font-size: 0.75rem; font-weight: bold; color: #6b7280;
+        font-size: 0.75rem; font-weight: bold; color: #6b7280; border: 1px solid #e5e7eb;
     }
     
     .btn-action-view {
@@ -79,137 +91,131 @@
     .btn-action-view:hover { border-color: #f43f5e; color: #f43f5e; background: #fff1f2; }
 </style>
 
-<div class="container py-5" style="max-width: 1200px;">
+<div class="d-flex justify-content-between align-items-end mb-4">
+    <div>
+        <h4 class="fw-bold text-dark mb-1">Wishlist Pelanggan</h4>
+        <p class="text-muted small mb-0">Daftar produk yang disukai dan disimpan oleh pelanggan.</p>
+    </div>
+    <div class="d-none d-md-block">
+        <span class="badge bg-white text-secondary border px-3 py-2 rounded-pill fw-normal shadow-sm">
+            <i class="fas fa-heart text-danger me-1"></i> Data Realtime
+        </span>
+    </div>
+</div>
 
-    <div class="d-flex justify-content-between align-items-end mb-4">
-        <div>
-            <h3 class="fw-bold text-dark mb-1">Wishlist Pelanggan</h3>
-            <p class="text-muted small mb-0">Daftar produk yang disukai dan disimpan oleh pelanggan.</p>
-        </div>
-        <div class="d-none d-md-block">
-            <span class="badge bg-white text-secondary border px-3 py-2 rounded-pill fw-normal shadow-sm">
-                <i class="fas fa-heart text-danger me-1"></i> Data Realtime
-            </span>
+<div class="row g-4 mb-4">
+    <div class="col-md-6 col-lg-4">
+        <div class="card stat-card-rose h-100">
+            <div class="card-body p-4 position-relative z-1">
+                <h6 class="text-white opacity-75 text-uppercase fw-bold mb-2 small" style="letter-spacing: 1px;">Total Favorit</h6>
+                <h2 class="mb-0 fw-bold display-4">{{ favorites|length }}</h2>
+                <span class="small text-white opacity-75">Item dalam wishlist</span>
+            </div>
+            <i class="fas fa-heart icon-watermark"></i>
         </div>
     </div>
 
-    <div class="row g-4 mb-4">
-        <div class="col-md-6 col-lg-4">
-            <div class="stat-card-rose p-4 h-100">
-                <div class="position-relative z-1">
-                    <h6 class="text-white opacity-75 text-uppercase fw-bold mb-2" style="font-size: 0.75rem; letter-spacing: 1px;">Total Favorit</h6>
-                    <h2 class="mb-0 fw-bold display-4">{{ favorites|length }}</h2>
-                    <span class="small text-white opacity-75">Item dalam wishlist</span>
-                </div>
-                <i class="fas fa-heart icon-watermark"></i>
+    <div class="col-md-6 col-lg-4">
+        <div class="card stat-card-white h-100">
+            <div class="card-body p-4 position-relative z-1">
+                <h6 class="text-muted text-uppercase fw-bold mb-2 small" style="letter-spacing: 1px;">Potensi Omzet</h6>
+                {% set total_potential = favorites | sum(attribute='product.price') %}
+                <h2 class="mb-0 fw-bold text-dark display-6">
+                    Rp {{ "{:,.0f}".format(total_potential).replace(',', '.') }}
+                </h2>
+                <span class="small text-muted">Jika semua wishlist dibeli</span>
             </div>
+            <i class="fas fa-chart-line icon-watermark icon-watermark-dark"></i>
         </div>
+    </div>
+</div>
 
-        <div class="col-md-6 col-lg-4">
-            <div class="stat-card-white p-4 h-100">
-                <div class="position-relative z-1">
-                    <h6 class="text-muted text-uppercase fw-bold mb-2" style="font-size: 0.75rem; letter-spacing: 1px;">Potensi Omzet</h6>
-                    {% set total_potential = favorites | sum(attribute='product.price') %}
-                    <h2 class="mb-0 fw-bold text-dark display-6">
-                        Rp {{ "{:,.0f}".format(total_potential).replace(',', '.') }}
-                    </h2>
-                    <span class="small text-muted">Jika semua wishlist dibeli</span>
-                </div>
-                <i class="fas fa-chart-line icon-watermark icon-watermark-dark"></i>
-            </div>
+<div class="card border-0 shadow-sm rounded-4 overflow-hidden">
+    <div class="p-3 border-bottom bg-white d-flex justify-content-between align-items-center flex-wrap gap-3">
+        <div class="position-relative" style="min-width: 300px;">
+            <i class="fas fa-search search-icon"></i>
+            <input type="text" id="searchInput" class="form-control search-input py-2" placeholder="Cari pelanggan atau produk...">
+        </div>
+        
+        <div class="dropdown">
+            <button class="btn btn-white btn-sm border text-muted dropdown-toggle rounded-3" type="button" data-bs-toggle="dropdown">
+                <i class="fas fa-filter me-1"></i> Filter
+            </button>
+            <ul class="dropdown-menu dropdown-menu-end border-0 shadow-lg mt-1 rounded-3">
+                <li><a class="dropdown-item small" href="#">Terbaru</a></li>
+                <li><a class="dropdown-item small" href="#">Harga Tertinggi</a></li>
+            </ul>
         </div>
     </div>
 
-    <div class="card-premium">
-        <div class="p-3 border-bottom bg-white d-flex justify-content-between align-items-center">
-            <div class="position-relative" style="min-width: 250px;">
-                <i class="fas fa-search text-secondary position-absolute top-50 start-0 translate-middle-y ms-3 small"></i>
-                <input type="text" id="searchInput" class="form-control bg-light border-0 ps-5 rounded-3" placeholder="Cari pelanggan atau produk...">
-            </div>
-            
-            <div class="dropdown">
-                <button class="btn btn-white btn-sm border text-muted dropdown-toggle" type="button" data-bs-toggle="dropdown">
-                    <i class="fas fa-filter me-1"></i> Filter
-                </button>
-                <ul class="dropdown-menu dropdown-menu-end border-0 shadow-lg mt-1">
-                    <li><a class="dropdown-item small" href="#">Terbaru</a></li>
-                    <li><a class="dropdown-item small" href="#">Harga Tertinggi</a></li>
-                </ul>
-            </div>
-        </div>
-
-        <div class="table-responsive">
-            <table class="table mb-0 align-middle w-100">
-                <thead class="table-header">
-                    <tr>
-                        <th class="ps-4 py-3">Produk</th>
-                        <th class="py-3">Pelanggan</th>
-                        <th class="py-3">Tanggal Ditambahkan</th>
-                        <th class="py-3 text-end">Harga</th>
-                        <th class="py-3 text-end pe-4">Aksi</th>
-                    </tr>
-                </thead>
-                <tbody class="bg-white" id="favTableBody">
-                    {% for f in favorites %}
-                    <tr class="table-row">
-                        <td class="ps-4">
-                            <div class="d-flex align-items-center gap-3">
-                                <img src="{{ url_for('product_image', id=f.product.id) }}?v={{ range(1, 10000) | random }}" 
-                                     class="product-thumb" 
-                                     onerror="this.onerror=null;this.src='https://ui-avatars.com/api/?name={{ f.product.name }}&background=fee2e2&color=f43f5e&size=100';">
-                                <div>
-                                    <div class="fw-bold text-dark product-name">{{ f.product.name }}</div>
-                                    <small class="text-muted d-block" style="font-size: 0.75rem;">SKU: #{{ f.product.id }}</small>
-                                </div>
+    <div class="table-responsive">
+        <table class="table mb-0 align-middle w-100 table-hover">
+            <thead class="table-header bg-light">
+                <tr>
+                    <th class="ps-4 py-3">Produk</th>
+                    <th class="py-3">Pelanggan</th>
+                    <th class="py-3">Tanggal Ditambahkan</th>
+                    <th class="py-3 text-end">Harga</th>
+                    <th class="py-3 text-end pe-4">Aksi</th>
+                </tr>
+            </thead>
+            <tbody class="bg-white" id="favTableBody">
+                {% for f in favorites %}
+                <tr class="table-row">
+                    <td class="ps-4">
+                        <div class="d-flex align-items-center gap-3">
+                            <img src="{{ url_for('product_image', id=f.product.id) }}?v={{ range(1, 10000) | random }}" 
+                                    class="product-thumb" 
+                                    onerror="this.onerror=null;this.src='https://ui-avatars.com/api/?name={{ f.product.name }}&background=fee2e2&color=f43f5e&size=100';">
+                            <div>
+                                <div class="fw-bold text-dark product-name">{{ f.product.name }}</div>
+                                <small class="text-muted d-block" style="font-size: 0.75rem;">SKU: <span class="font-monospace">{{ f.product.id }}</span></small>
                             </div>
-                        </td>
+                        </div>
+                    </td>
 
-                        <td>
-                            <div class="d-flex align-items-center gap-2">
-                                <div class="customer-avatar">
-                                    {{ f.customer.name[:1] }}
-                                </div>
-                                <a href="{{ url_for('customer_detail', id=f.customer_id) }}" class="text-dark text-decoration-none fw-medium customer-name-text">
-                                    {{ f.customer.name }}
-                                </a>
+                    <td>
+                        <div class="d-flex align-items-center gap-2">
+                            <div class="customer-avatar">
+                                {{ f.customer.name[:1] }}
                             </div>
-                        </td>
-
-                        <td>
-                            <span class="text-muted small">
-                                <i class="far fa-calendar me-1"></i> {{ f.created_at.strftime('%d %b %Y') }}
-                            </span>
-                        </td>
-
-                        <td class="text-end fw-bold text-dark font-monospace">
-                            Rp {{ "{:,.0f}".format(f.product.price).replace(',', '.') }}
-                        </td>
-
-                        <td class="text-end pe-4">
-                            <a href="#" class="btn-action-view" title="Lihat Detail Produk">
-                                <i class="fas fa-external-link-alt small"></i>
+                            <a href="{{ url_for('customer_detail', id=f.customer_id) }}" class="text-dark text-decoration-none fw-medium customer-name-text">
+                                {{ f.customer.name }}
                             </a>
-                        </td>
-                    </tr>
-                    {% else %}
-                    <tr>
-                        <td colspan="5" class="text-center py-5">
-                            <div class="d-flex flex-column align-items-center justify-content-center">
-                                <div class="bg-light rounded-circle p-4 mb-3">
-                                    <i class="fas fa-heart-broken fa-3x text-danger opacity-25"></i>
-                                </div>
-                                <h6 class="fw-bold text-dark">Belum ada Favorit</h6>
-                                <p class="text-muted small mb-3">Pelanggan belum menambahkan produk ke wishlist.</p>
-                                <a href="/generate_dummy" class="btn btn-sm btn-outline-danger rounded-pill px-4">
-                                    Generate Dummy Data
-                                </a>
+                        </div>
+                    </td>
+
+                    <td>
+                        <span class="text-muted small">
+                            <i class="far fa-calendar me-1"></i> {{ f.created_at.strftime('%d %b %Y') }}
+                        </span>
+                    </td>
+
+                    <td class="text-end fw-bold text-dark font-monospace">
+                        Rp {{ "{:,.0f}".format(f.product.price).replace(',', '.') }}
+                    </td>
+
+                    <td class="text-end pe-4">
+                        <a href="#" class="btn-action-view shadow-sm" title="Lihat Detail Produk">
+                            <i class="fas fa-external-link-alt small"></i>
+                        </a>
+                    </td>
+                </tr>
+                {% else %}
+                <tr>
+                    <td colspan="5" class="text-center py-5">
+                        <div class="d-flex flex-column align-items-center justify-content-center">
+                            <div class="bg-light rounded-circle p-4 mb-3">
+                                <i class="fas fa-heart-broken fa-3x text-danger opacity-25"></i>
                             </div>
-                        </td>
-                    </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
-        </div>
+                            <h6 class="fw-bold text-dark">Belum ada Favorit</h6>
+                            <p class="text-muted small mb-0">Pelanggan belum menambahkan produk ke wishlist.</p>
+                        </div>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
     </div>
 </div>
 

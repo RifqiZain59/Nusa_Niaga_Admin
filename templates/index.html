@@ -10,198 +10,144 @@
         color: #1f2937;
     }
 
-    /* --- 1. KARTU STATISTIK (WARNA BEDA) --- */
+    /* --- STAT CARDS --- */
     .card-stat {
-        border: none;
-        border-radius: 16px;
-        position: relative;
-        overflow: hidden;
-        color: white;
-        transition: transform 0.3s ease, box-shadow 0.3s ease;
-        height: 100%;
+        border: none; border-radius: 16px; position: relative; overflow: hidden;
+        color: white; transition: transform 0.3s ease, box-shadow 0.3s ease; height: 100%;
         box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
     }
-    .card-stat:hover {
-        transform: translateY(-5px);
-        box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.2);
-    }
+    .card-stat:hover { transform: translateY(-5px); box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.2); }
 
-    /* Pilihan Warna Gradient */
-    .bg-gradient-blue { background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%); }   /* Biru Laut */
-    .bg-gradient-green { background: linear-gradient(135deg, #10b981 0%, #047857 100%); }  /* Hijau Emerald */
-    .bg-gradient-orange { background: linear-gradient(135deg, #f59e0b 0%, #b45309 100%); } /* Oranye Sunset */
+    .bg-gradient-blue { background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%); }
+    .bg-gradient-green { background: linear-gradient(135deg, #10b981 0%, #047857 100%); }
+    .bg-gradient-orange { background: linear-gradient(135deg, #f59e0b 0%, #b45309 100%); }
 
-    /* Watermark Icon (Putih Transparan) */
     .icon-watermark {
-        position: absolute;
-        right: -15px;
-        bottom: -20px;
-        font-size: 6rem;
-        color: white;
-        opacity: 0.15; /* Transparansi pas */
-        transform: rotate(-15deg);
-        pointer-events: none;
+        position: absolute; right: -15px; bottom: -20px; font-size: 6rem;
+        color: white; opacity: 0.15; transform: rotate(-15deg); pointer-events: none;
     }
 
-    /* Typography dalam Kartu */
     .stat-title { font-size: 0.85rem; font-weight: 600; text-transform: uppercase; letter-spacing: 1px; opacity: 0.9; }
     .stat-number { font-size: 2.5rem; font-weight: 700; margin: 5px 0; line-height: 1; }
     .stat-desc { font-size: 0.8rem; opacity: 0.8; }
 
-    /* --- 2. TABEL LURUS & RAPI --- */
+    /* --- TABLE STYLE --- */
     .card-table {
-        background: white;
-        border-radius: 16px;
-        border: 1px solid #e5e7eb;
-        overflow: hidden; /* Penting untuk border-radius */
-        box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+        background: white; border-radius: 16px; border: 1px solid #e5e7eb;
+        overflow: hidden; box-shadow: 0 1px 3px rgba(0,0,0,0.05);
     }
-    
     .custom-table { width: 100%; border-collapse: collapse; }
-    
-    /* Header Table */
     .custom-table thead th {
-        background-color: #f9fafb;
-        color: #6b7280;
-        font-size: 0.75rem;
-        font-weight: 600;
-        text-transform: uppercase;
-        letter-spacing: 0.5px;
-        padding: 1rem 1.5rem;
-        border-bottom: 2px solid #e5e7eb;
-        white-space: nowrap; /* Mencegah header turun baris */
+        background-color: #f9fafb; color: #6b7280; font-size: 0.75rem; font-weight: 600;
+        text-transform: uppercase; letter-spacing: 0.5px; padding: 1rem 1.5rem;
+        border-bottom: 2px solid #e5e7eb; white-space: nowrap;
     }
-
-    /* Body Table */
     .custom-table tbody td {
-        padding: 1rem 1.5rem;
-        vertical-align: middle; /* KUNCI: Agar teks lurus vertikal (tengah) */
-        border-bottom: 1px solid #f3f4f6;
-        color: #374151;
-        font-size: 0.9rem;
+        padding: 1rem 1.5rem; vertical-align: middle; border-bottom: 1px solid #f3f4f6;
+        color: #374151; font-size: 0.9rem;
     }
     .custom-table tbody tr:hover { background-color: #f8fafc; }
     .custom-table tbody tr:last-child td { border-bottom: none; }
-
-    /* Helpers untuk Perataan */
-    .text-end { text-align: right !important; } /* Paksa rata kanan */
-    .text-center { text-align: center !important; }
     
-    /* Font Harga (Monospace agar angka sejajar) */
     .font-mono { font-family: 'Consolas', 'Monaco', monospace; letter-spacing: -0.5px; }
 </style>
 
-<div class="container py-5" style="max-width: 1200px;">
-    
-    <div class="d-flex justify-content-between align-items-center mb-5">
-        <div>
-            <h2 class="fw-bold text-dark mb-1">Dashboard</h2>
-            <p class="text-muted mb-0">Ringkasan performa toko hari ini.</p>
-        </div>
-        <div class="d-none d-md-block">
-            <span class="badge bg-white text-secondary border shadow-sm px-3 py-2 rounded-pill fw-normal">
-                <i class="far fa-calendar-alt me-2"></i> <span id="currentDate">Hari ini</span>
-            </span>
+<div class="d-flex justify-content-between align-items-center mb-5">
+    <div>
+        <h2 class="fw-bold text-dark mb-1">Dashboard</h2>
+        <p class="text-muted mb-0">Ringkasan performa toko hari ini.</p>
+    </div>
+    <div class="d-none d-md-block">
+        <span class="badge bg-white text-secondary border shadow-sm px-3 py-2 rounded-pill fw-normal">
+            <i class="far fa-calendar-alt me-2"></i> <span id="currentDate">Hari ini</span>
+        </span>
+    </div>
+</div>
+
+<div class="row g-4 mb-5">
+    <div class="col-md-4">
+        <div class="card-stat bg-gradient-blue p-4">
+            <div class="position-relative z-1">
+                <div class="stat-title">Total Produk</div>
+                <div class="stat-number">{{ total_products }}</div>
+                <div class="stat-desc">SKU Terdaftar</div>
+            </div>
+            <i class="fas fa-box icon-watermark"></i>
         </div>
     </div>
-
-    <div class="row g-4 mb-5">
-        
-        <div class="col-md-4">
-            <div class="card-stat bg-gradient-blue p-4">
-                <div class="position-relative z-1">
-                    <div class="stat-title">Total Produk</div>
-                    <div class="stat-number">{{ total_products }}</div>
-                    <div class="stat-desc">SKU Terdaftar</div>
-                </div>
-                <i class="fas fa-box icon-watermark"></i>
+    <div class="col-md-4">
+        <div class="card-stat bg-gradient-green p-4">
+            <div class="position-relative z-1">
+                <div class="stat-title">Total Stok</div>
+                <div class="stat-number">{{ total_stock }}</div>
+                <div class="stat-desc">Unit Tersedia</div>
             </div>
-        </div>
-
-        <div class="col-md-4">
-            <div class="card-stat bg-gradient-green p-4">
-                <div class="position-relative z-1">
-                    <div class="stat-title">Total Stok</div>
-                    <div class="stat-number">{{ total_stock }}</div>
-                    <div class="stat-desc">Unit Tersedia</div>
-                </div>
-                <i class="fas fa-cubes icon-watermark"></i>
-            </div>
-        </div>
-
-        <div class="col-md-4">
-            <div class="card-stat bg-gradient-orange p-4">
-                <div class="position-relative z-1">
-                    <div class="stat-title">Pelanggan</div>
-                    <div class="stat-number">{{ total_customers }}</div>
-                    <div class="stat-desc">Pernah Bertransaksi</div>
-                </div>
-                <i class="fas fa-users icon-watermark"></i>
-            </div>
+            <i class="fas fa-cubes icon-watermark"></i>
         </div>
     </div>
-
-    <div class="card-table">
-        <div class="d-flex justify-content-between align-items-center px-4 py-4 border-bottom bg-white">
-            <h5 class="fw-bold m-0 text-dark">Transaksi Terakhir</h5>
-            <a href="{{ url_for('transactions') }}" class="text-decoration-none fw-bold small text-primary">
-                Lihat Semua &rarr;
-            </a>
+    <div class="col-md-4">
+        <div class="card-stat bg-gradient-orange p-4">
+            <div class="position-relative z-1">
+                <div class="stat-title">Pelanggan</div>
+                <div class="stat-number">{{ total_customers }}</div>
+                <div class="stat-desc">Pernah Bertransaksi</div>
+            </div>
+            <i class="fas fa-users icon-watermark"></i>
         </div>
+    </div>
+</div>
 
-        <div class="table-responsive">
-            <table class="custom-table">
-                <thead>
-                    <tr>
-                        <th style="width: 20%;">Waktu</th>
-                        <th style="width: 25%;">Pelanggan</th>
-                        <th style="width: 25%;">Item</th>
-                        
-                        <th class="text-end" style="width: 15%;">Total Nilai</th>
-                        <th class="text-end pe-4" style="width: 15%;">Status</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for t in latest_transactions %}
-                    <tr>
-                        <td>
-                            {% if t.date %}
-                                <div class="fw-bold text-dark">{{ t.date.strftime('%d/%m/%Y') }}</div>
-                                <div class="text-muted small" style="font-size: 0.75rem;">{{ t.date.strftime('%H:%M') }} WIB</div>
-                            {% else %} - {% endif %}
-                        </td>
-                        
-                        <td>
-                            <div class="fw-bold text-dark">{{ t.customer_name }}</div>
-                        </td>
+<div class="card-table">
+    <div class="d-flex justify-content-between align-items-center px-4 py-4 border-bottom bg-white">
+        <h5 class="fw-bold m-0 text-dark">Transaksi Terakhir</h5>
+        <a href="{{ url_for('transactions') }}" class="text-decoration-none fw-bold small text-primary">
+            Lihat Semua &rarr;
+        </a>
+    </div>
 
-                        <td>
-                            {{ t.product.name }}
-                            <span class="text-muted small ms-1">x{{ t.quantity }}</span>
-                        </td>
-
-                        <td class="text-end">
-                            <span class="fw-bold text-dark font-mono">
-                                Rp {{ "{:,.0f}".format(t.final_price).replace(',', '.') }}
-                            </span>
-                        </td>
-
-                        <td class="text-end pe-4">
-                            <span class="badge bg-success bg-opacity-10 text-success border border-success border-opacity-25 rounded-pill px-3">
-                                Selesai
-                            </span>
-                        </td>
-                    </tr>
-                    {% else %}
-                    <tr>
-                        <td colspan="5" class="text-center py-5 text-muted">
-                            Belum ada data transaksi masuk.
-                        </td>
-                    </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
-        </div>
+    <div class="table-responsive">
+        <table class="custom-table">
+            <thead>
+                <tr>
+                    <th style="width: 20%;">Waktu</th>
+                    <th style="width: 25%;">Pelanggan</th>
+                    <th style="width: 25%;">Item</th>
+                    <th class="text-end" style="width: 15%;">Total Nilai</th>
+                    <th class="text-end pe-4" style="width: 15%;">Status</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for t in latest_transactions %}
+                <tr>
+                    <td>
+                        {% if t.date %}
+                            <div class="fw-bold text-dark">{{ t.date.strftime('%d/%m/%Y') }}</div>
+                            <div class="text-muted small" style="font-size: 0.75rem;">{{ t.date.strftime('%H:%M') }} WIB</div>
+                        {% else %} - {% endif %}
+                    </td>
+                    <td><div class="fw-bold text-dark">{{ t.customer_name }}</div></td>
+                    <td>
+                        {{ t.product.name }}
+                        <span class="text-muted small ms-1">x{{ t.quantity }}</span>
+                    </td>
+                    <td class="text-end">
+                        <span class="fw-bold text-dark font-mono">
+                            Rp {{ "{:,.0f}".format(t.final_price).replace(',', '.') }}
+                        </span>
+                    </td>
+                    <td class="text-end pe-4">
+                        <span class="badge bg-success bg-opacity-10 text-success border border-success border-opacity-25 rounded-pill px-3">
+                            Selesai
+                        </span>
+                    </td>
+                </tr>
+                {% else %}
+                <tr>
+                    <td colspan="5" class="text-center py-5 text-muted">Belum ada data transaksi masuk.</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
     </div>
 </div>
 

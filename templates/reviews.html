@@ -14,17 +14,7 @@
         background-color: #f3f4f6;
     }
 
-    /* === CARD STYLES === */
-    .card-premium {
-        background: white;
-        border: 1px solid #e5e7eb;
-        border-radius: 16px;
-        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
-        overflow: hidden;
-    }
-
     /* === STAT CARDS === */
-    /* Warna Amber/Emas untuk Rating */
     .stat-card-amber {
         background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
         color: white;
@@ -32,8 +22,8 @@
         position: relative;
         overflow: hidden;
         border: none;
-        box-shadow: 0 10px 15px -3px rgba(245, 158, 11, 0.3);
-        transition: transform 0.2s;
+        box-shadow: 0 10px 25px rgba(245, 158, 11, 0.25);
+        transition: transform 0.3s ease;
     }
     .stat-card-amber:hover { transform: translateY(-5px); }
 
@@ -45,7 +35,9 @@
         overflow: hidden;
         color: #1f2937;
         box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+        transition: transform 0.3s ease;
     }
+    .stat-card-white:hover { transform: translateY(-5px); }
 
     /* ICON WATERMARK */
     .icon-watermark {
@@ -54,6 +46,27 @@
         transform: rotate(-15deg); pointer-events: none;
     }
     .icon-watermark-dark { color: #1f2937; opacity: 0.05; }
+
+    /* === SEARCH BAR === */
+    .search-input {
+        background-color: #f9fafb;
+        border: 1px solid #e5e7eb;
+        color: #374151;
+        font-size: 0.875rem;
+        padding-left: 2.5rem; /* Ruang untuk ikon */
+        transition: all 0.2s;
+        border-radius: 10px;
+    }
+    .search-input:focus {
+        background-color: white;
+        border-color: #f59e0b;
+        box-shadow: 0 0 0 4px rgba(245, 158, 11, 0.1);
+    }
+    .search-icon {
+        position: absolute; left: 1rem; top: 50%;
+        transform: translateY(-50%); color: #9ca3af;
+        pointer-events: none; font-size: 0.9rem;
+    }
 
     /* === TABLE & ELEMENTS === */
     .table-header {
@@ -79,62 +92,60 @@
     /* Filter Buttons */
     .btn-filter {
         border: 1px solid #e5e7eb; background: white; color: #6b7280;
-        border-radius: 20px; font-size: 0.85rem; padding: 5px 15px;
-        transition: all 0.2s;
+        border-radius: 10px; font-size: 0.85rem; padding: 6px 16px;
+        transition: all 0.2s; font-weight: 500;
     }
     .btn-filter:hover, .btn-filter.active {
         background: #fef3c7; color: #d97706; border-color: #fcd34d;
     }
 </style>
 
-<div class="container py-5" style="max-width: 1200px;">
+<div class="d-flex justify-content-between align-items-end mb-4">
+    <div>
+        <h4 class="fw-bold text-dark mb-1">Ulasan & Reputasi</h4>
+        <p class="text-muted small mb-0">Pantau feedback pelanggan terhadap produk Anda.</p>
+    </div>
+</div>
 
-    <div class="d-flex justify-content-between align-items-end mb-4">
-        <div>
-            <h3 class="fw-bold text-dark mb-1">Ulasan & Reputasi</h3>
-            <p class="text-muted small mb-0">Pantau feedback pelanggan terhadap produk Anda.</p>
+<div class="row g-4 mb-4">
+    <div class="col-md-6 col-lg-4">
+        <div class="card stat-card-amber h-100">
+            <div class="card-body p-4 position-relative z-1">
+                <h6 class="text-white opacity-75 text-uppercase fw-bold mb-2 small" style="letter-spacing: 1px;">Rata-rata Toko</h6>
+                <div class="d-flex align-items-end gap-2">
+                    <h2 class="mb-0 fw-bold display-4">{{ "%.1f"|format(avg_rating) }}</h2>
+                    <span class="fs-4 text-white opacity-75 mb-2">/ 5.0</span>
+                </div>
+                <div class="mt-2">
+                    {% for i in range(avg_rating|int) %}<i class="fas fa-star text-white"></i>{% endfor %}
+                    {% if (avg_rating % 1) >= 0.5 %}<i class="fas fa-star-half-alt text-white"></i>{% endif %}
+                </div>
+            </div>
+            <i class="fas fa-star icon-watermark"></i>
         </div>
     </div>
 
-    <div class="row g-4 mb-4">
-        <div class="col-md-6 col-lg-4">
-            <div class="stat-card-amber p-4 h-100">
-                <div class="position-relative z-1">
-                    <h6 class="text-white opacity-75 text-uppercase fw-bold mb-2" style="font-size: 0.75rem; letter-spacing: 1px;">Rata-rata Toko</h6>
-                    <div class="d-flex align-items-end gap-2">
-                        <h2 class="mb-0 fw-bold display-4">{{ "%.1f"|format(avg_rating) }}</h2>
-                        <span class="fs-4 text-white opacity-75 mb-2">/ 5.0</span>
-                    </div>
-                    <div class="mt-2">
-                        {% for i in range(avg_rating|int) %}<i class="fas fa-star text-white"></i>{% endfor %}
-                        {% if (avg_rating % 1) >= 0.5 %}<i class="fas fa-star-half-alt text-white"></i>{% endif %}
-                    </div>
-                </div>
-                <i class="fas fa-star icon-watermark"></i>
+    <div class="col-md-6 col-lg-4">
+        <div class="card stat-card-white h-100">
+            <div class="card-body p-4 position-relative z-1">
+                <h6 class="text-muted text-uppercase fw-bold mb-2 small" style="letter-spacing: 1px;">Total Feedback</h6>
+                <h2 class="mb-0 fw-bold text-dark display-6">{{ total_reviews }}</h2>
+                <span class="small text-muted">Ulasan masuk</span>
             </div>
+            <i class="fas fa-comments icon-watermark icon-watermark-dark"></i>
         </div>
-
-        <div class="col-md-6 col-lg-4">
-            <div class="stat-card-white p-4 h-100">
-                <div class="position-relative z-1">
-                    <h6 class="text-muted text-uppercase fw-bold mb-2" style="font-size: 0.75rem; letter-spacing: 1px;">Total Feedback</h6>
-                    <h2 class="mb-0 fw-bold text-dark display-6">{{ total_reviews }}</h2>
-                    <span class="small text-muted">Ulasan masuk</span>
-                </div>
-                <i class="fas fa-comments icon-watermark icon-watermark-dark"></i>
-            </div>
-        </div>
-        
-        <div class="col-md-6 col-lg-4">
-            <div class="stat-card-white p-4 h-100 d-flex flex-column justify-content-center">
-                <h6 class="text-muted text-uppercase fw-bold mb-2" style="font-size: 0.7rem;">Kepuasan Pelanggan</h6>
+    </div>
+    
+    <div class="col-md-6 col-lg-4">
+        <div class="card stat-card-white h-100">
+            <div class="card-body p-4 d-flex flex-column justify-content-center">
+                <h6 class="text-muted text-uppercase fw-bold mb-2 small" style="letter-spacing: 1px;">Kepuasan Pelanggan</h6>
                 
-                <div class="progress" style="height: 8px; margin-bottom: 8px;">
-                    {# --- FIX: Menggunakan default(0) agar tidak error jika data kosong --- #}
+                <div class="progress rounded-pill bg-light" style="height: 10px; margin-bottom: 12px;">
                     {% set safe_rating = avg_rating | default(0) | float %}
                     {% set satisfaction_pct = (safe_rating / 5) * 100 %}
                     
-                    <div class="progress-bar bg-warning" role="progressbar" 
+                    <div class="progress-bar bg-warning rounded-pill" role="progressbar" 
                          style="width: {{ satisfaction_pct }}%"
                          aria-valuenow="{{ satisfaction_pct }}" aria-valuemin="0" aria-valuemax="100">
                     </div>
@@ -148,109 +159,109 @@
             </div>
         </div>
     </div>
+</div>
 
-    <div class="card-premium">
-        <div class="p-3 border-bottom bg-white d-flex flex-column flex-md-row justify-content-between align-items-center gap-3">
-            
-            <div class="d-flex gap-2 overflow-auto" style="white-space: nowrap;">
-                <button class="btn-filter active" onclick="filterReviews('all', this)">Semua</button>
-                <button class="btn-filter" onclick="filterReviews('5', this)"><i class="fas fa-star text-warning me-1"></i>5</button>
-                <button class="btn-filter" onclick="filterReviews('4', this)"><i class="fas fa-star text-warning me-1"></i>4</button>
-                <button class="btn-filter" onclick="filterReviews('low', this)">Low (<3)</button>
-            </div>
-
-            <div class="position-relative" style="min-width: 250px;">
-                <i class="fas fa-search text-secondary position-absolute top-50 start-0 translate-middle-y ms-3 small"></i>
-                <input type="text" id="searchInput" class="form-control bg-light border-0 ps-5 rounded-pill" placeholder="Cari ulasan...">
-            </div>
-        </div>
-
-        <div class="table-responsive">
-            <table class="table mb-0 align-middle w-100" id="reviewsTable">
-                <thead class="table-header">
-                    <tr>
-                        <th class="ps-4 py-3">Pelanggan</th>
-                        <th class="py-3">Rating & Produk</th>
-                        <th class="py-3" style="width: 40%;">Ulasan</th>
-                        <th class="py-3">Waktu</th>
-                        <th class="py-3 text-end pe-4">Aksi</th>
-                    </tr>
-                </thead>
-                <tbody class="bg-white" id="reviewsBody">
-                    {% for r in reviews %}
-                    <tr class="table-row review-row" data-rating="{{ r.rating }}">
-                        <td class="ps-4">
-                            <div class="d-flex align-items-center gap-3">
-                                {% if r.customer_image and r.customer_image|length > 100 %}
-                                    <img src="data:image/jpeg;base64,{{ r.customer_image }}" class="customer-avatar-img">
-                                {% else %}
-                                    <div class="customer-avatar-initial">
-                                        {{ (r.customer_name or r.customer.name or '?')[:1] }}
-                                    </div>
-                                {% endif %}
-                                <div>
-                                    <div class="fw-bold text-dark customer-name">{{ r.customer_name or (r.customer.name if r.customer else 'Pelanggan') }}</div>
-                                    <span class="badge bg-light text-secondary border rounded-pill" style="font-size: 0.65rem;">Verified Buyer</span>
-                                </div>
-                            </div>
-                        </td>
-
-                        <td>
-                            <div class="mb-1 text-warning small" style="letter-spacing: -1px;">
-                                {% for i in range(r.rating) %}<i class="fas fa-star"></i>{% endfor %}
-                                {% for i in range(5 - r.rating) %}<i class="far fa-star text-muted opacity-25"></i>{% endfor %}
-                                <span class="text-dark fw-bold ms-1">{{ r.rating }}.0</span>
-                            </div>
-                            <div class="text-muted small product-name">
-                                <i class="fas fa-tag me-1 opacity-50"></i> {{ r.product.name if r.product else 'Produk Dihapus' }}
-                            </div>
-                        </td>
-
-                        <td>
-                            {% if r.comment %}
-                                <div class="p-2 bg-light rounded-3 border border-light position-relative text-dark small" style="font-style: italic;">
-                                    <i class="fas fa-quote-left text-muted opacity-25 position-absolute top-0 start-0 m-1"></i>
-                                    "{{ r.comment }}"
-                                </div>
-                            {% else %}
-                                <span class="text-muted opacity-50 small">- Tidak ada komentar -</span>
-                            {% endif %}
-                        </td>
-
-                        <td>
-                            <div class="text-muted small">{{ r.created_at.strftime('%d %b %Y') }}</div>
-                            <div class="text-muted x-small opacity-75">{{ r.created_at.strftime('%H:%M') }}</div>
-                        </td>
-
-                        <td class="text-end pe-4">
-                            <a href="{{ url_for('delete_review', id=r.id) }}" 
-                               class="btn btn-sm btn-white border text-danger shadow-sm rounded-3" 
-                               onclick="return confirm('Hapus ulasan ini secara permanen?')"
-                               title="Hapus">
-                                <i class="fas fa-trash-alt"></i>
-                            </a>
-                        </td>
-                    </tr>
-                    {% else %}
-                    <tr>
-                        <td colspan="5" class="text-center py-5">
-                            <div class="d-flex flex-column align-items-center justify-content-center">
-                                <div class="bg-light rounded-circle p-4 mb-3">
-                                    <i class="fas fa-star-half-alt fa-3x text-warning opacity-50"></i>
-                                </div>
-                                <h6 class="fw-bold text-dark">Belum ada Ulasan</h6>
-                                <p class="text-muted small">Tunggu pelanggan memberikan feedback.</p>
-                            </div>
-                        </td>
-                    </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
-        </div>
+<div class="card border-0 shadow-sm rounded-4 overflow-hidden">
+    <div class="p-3 border-bottom bg-white d-flex flex-column flex-md-row justify-content-between align-items-center gap-3">
         
-        <div id="noFilterResult" class="text-center py-5 d-none">
-            <span class="text-muted small">Tidak ada ulasan dengan kriteria ini.</span>
+        <div class="d-flex gap-2 overflow-auto" style="white-space: nowrap;">
+            <button class="btn-filter active" onclick="filterReviews('all', this)">Semua</button>
+            <button class="btn-filter" onclick="filterReviews('5', this)"><i class="fas fa-star text-warning me-1"></i>5</button>
+            <button class="btn-filter" onclick="filterReviews('4', this)"><i class="fas fa-star text-warning me-1"></i>4</button>
+            <button class="btn-filter" onclick="filterReviews('low', this)">Low (<3)</button>
         </div>
+
+        <div class="position-relative" style="min-width: 300px;">
+            <i class="fas fa-search search-icon"></i>
+            <input type="text" id="searchInput" class="form-control search-input py-2" placeholder="Cari ulasan...">
+        </div>
+    </div>
+
+    <div class="table-responsive">
+        <table class="table mb-0 align-middle w-100" id="reviewsTable">
+            <thead class="table-header bg-light">
+                <tr>
+                    <th class="ps-4 py-3">Pelanggan</th>
+                    <th class="py-3">Rating & Produk</th>
+                    <th class="py-3" style="width: 40%;">Ulasan</th>
+                    <th class="py-3">Waktu</th>
+                    <th class="py-3 text-end pe-4">Aksi</th>
+                </tr>
+            </thead>
+            <tbody class="bg-white" id="reviewsBody">
+                {% for r in reviews %}
+                <tr class="table-row review-row" data-rating="{{ r.rating }}">
+                    <td class="ps-4">
+                        <div class="d-flex align-items-center gap-3">
+                            {% if r.customer_image and r.customer_image|length > 100 %}
+                                <img src="data:image/jpeg;base64,{{ r.customer_image }}" class="customer-avatar-img">
+                            {% else %}
+                                <div class="customer-avatar-initial">
+                                    {{ (r.customer_name or r.customer.name or '?')[:1] }}
+                                </div>
+                            {% endif %}
+                            <div>
+                                <div class="fw-bold text-dark customer-name">{{ r.customer_name or (r.customer.name if r.customer else 'Pelanggan') }}</div>
+                                <span class="badge bg-light text-secondary border rounded-pill" style="font-size: 0.65rem;">Verified Buyer</span>
+                            </div>
+                        </div>
+                    </td>
+
+                    <td>
+                        <div class="mb-1 text-warning small" style="letter-spacing: -1px;">
+                            {% for i in range(r.rating) %}<i class="fas fa-star"></i>{% endfor %}
+                            {% for i in range(5 - r.rating) %}<i class="far fa-star text-muted opacity-25"></i>{% endfor %}
+                            <span class="text-dark fw-bold ms-1">{{ r.rating }}.0</span>
+                        </div>
+                        <div class="text-muted small product-name">
+                            <i class="fas fa-tag me-1 opacity-50"></i> {{ r.product.name if r.product else 'Produk Dihapus' }}
+                        </div>
+                    </td>
+
+                    <td>
+                        {% if r.comment %}
+                            <div class="p-2 bg-light rounded-3 border border-light position-relative text-dark small" style="font-style: italic;">
+                                <i class="fas fa-quote-left text-muted opacity-25 position-absolute top-0 start-0 m-1"></i>
+                                "{{ r.comment }}"
+                            </div>
+                        {% else %}
+                            <span class="text-muted opacity-50 small">- Tidak ada komentar -</span>
+                        {% endif %}
+                    </td>
+
+                    <td>
+                        <div class="text-muted small">{{ r.created_at.strftime('%d %b %Y') }}</div>
+                        <div class="text-muted x-small opacity-75">{{ r.created_at.strftime('%H:%M') }}</div>
+                    </td>
+
+                    <td class="text-end pe-4">
+                        <a href="{{ url_for('delete_review', id=r.id) }}" 
+                           class="btn btn-sm btn-white border text-danger shadow-sm rounded-3" 
+                           onclick="return confirm('Hapus ulasan ini secara permanen?')"
+                           title="Hapus">
+                            <i class="fas fa-trash-alt"></i>
+                        </a>
+                    </td>
+                </tr>
+                {% else %}
+                <tr>
+                    <td colspan="5" class="text-center py-5">
+                        <div class="d-flex flex-column align-items-center justify-content-center">
+                            <div class="bg-light rounded-circle p-4 mb-3">
+                                <i class="fas fa-star-half-alt fa-3x text-warning opacity-50"></i>
+                            </div>
+                            <h6 class="fw-bold text-dark">Belum ada Ulasan</h6>
+                            <p class="text-muted small mb-0">Tunggu pelanggan memberikan feedback.</p>
+                        </div>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    
+    <div id="noFilterResult" class="text-center py-5 d-none">
+        <span class="text-muted small">Tidak ada ulasan dengan kriteria ini.</span>
     </div>
 </div>
 
