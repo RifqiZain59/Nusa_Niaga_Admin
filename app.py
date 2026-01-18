@@ -1513,5 +1513,29 @@ def api_checkout():
         print(f"Error Transaction API: {e}")
         return api_response('error', str(e))
 
+@app.route('/api/login_via_uid', methods=['POST'])
+def api_login_via_uid():
+    try:
+        data = request.json
+        uid = data.get('uid')
+        
+        if not uid: return api_response('error', 'UID tidak ditemukan')
+
+        user_ref = db.collection('customers').document(uid)
+        doc = user_ref.get()
+
+        if doc.exists:
+            # Update last login
+            user_ref.update({'last_login': datetime.now().isoformat()})
+            user_data = doc.to_dict()
+            user_data['id'] = uid # Pastikan ID terbawa
+            
+            return api_response('success', 'Login Berhasil', user_data)
+        else:
+            return api_response('error', 'Data pengguna tidak ditemukan di database server.')
+            
+    except Exception as e:
+        return api_response('error', str(e))
+
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5000, debug=True)
